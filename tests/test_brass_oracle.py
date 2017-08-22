@@ -130,7 +130,7 @@ def test_burn(chain):
     owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
     attacker_addr = tester.accounts[1]
     deposit_size = 100000
-    burn_size = deposit_size / 2
+    burn_size = int(deposit_size / 2)
     do_deposit(chain, gnt, gntw, cdep, owner_addr, deposit_size, lockUntil)
     amnt = gntw.call().balanceOf(cdep.address)
     # not oracle
@@ -150,7 +150,7 @@ def test_reimburse(chain):
     owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
     other_addr = tester.accounts[1]
     deposit_size = 100000
-    reimb_size = deposit_size / 2
+    reimb_size = int(deposit_size / 2)
     do_deposit(chain, gnt, gntw, cdep, owner_addr, deposit_size, lockUntil)
     amnt = gntw.call().balanceOf(cdep.address)
     # not oracle

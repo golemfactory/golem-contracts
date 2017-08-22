@@ -5,7 +5,12 @@
 
 All with basic smoke tests.
 
+# Requirements
+* python3 (for tests)
+
 # Compiling and running tests
+`$ virtualenv --python=$(which python3) venv`  
+`$ . venv/bin/activate`  
 `$ pip install -r requirements.txt`  
 `$ populus compile`  
 `$ pytest`  
