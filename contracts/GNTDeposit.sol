@@ -5,64 +5,105 @@ import "./GolemNetworkTokenWrapped.sol";
 contract GNTDeposit {
     string public ensaddress;
     address public oracle;
+    uint256 public withdrawal_delay;
+
     GolemNetworkTokenWrapped public token;
     // owner => amount
     mapping (address => uint256) public balances;
-    // owner => block_number
+    // owner => timestamp after which withdraw is possible
+    //        | 0 if locked
     mapping (address =>  uint256) public locked_until;
 
-    event Deposit(address indexed _from, uint256 _amount, uint256 until);
+    event Deposit(address indexed _from, uint256 _amount);
     event Withdraw(address indexed _from, address indexed _to, uint256 _amount);
+    event Lock(address indexed _owner);
+    event Unlock(address indexed _owner);
     event Burn(address indexed _who, uint256 _amount);
     event Reimburse(address indexed _owner, address _payee, uint256 _amount);
 
     function GNTDeposit(address _token,
                         address _oracle,
-                        string _ensaddress) {
+                        string _ensaddress,
+                        uint256 _withdrawal_delay) {
         token = GolemNetworkTokenWrapped(_token);
         oracle = _oracle;
         ensaddress = _ensaddress;
+        withdrawal_delay = _withdrawal_delay;
+    }
+
+    modifier onlyOracle() {
+        require(msg.sender == oracle);
+        _;
     }
 
     function balanceOf(address _owner) external constant returns (uint256) {
         return balances[_owner];
     }
 
-    function lockBlock(address _owner) external constant returns (uint256) {
+    function isLocked(address _owner) external constant returns (bool) {
+        return locked_until[_owner] == 0;
+    }
+
+    function isTimeLocked(address _owner) external constant returns (bool) {
+        return locked_until[_owner] > block.timestamp;
+    }
+
+    function isUnlocked(address _owner) external constant returns (bool) {
+        return ((locked_until[_owner] != 0) &&
+                (locked_until[_owner] < block.timestamp));
+    }
+
+    function getTimelock(address _owner) external constant returns (uint256) {
         return locked_until[_owner];
     }
 
-    // _locked_until must grow
-    function deposit(uint256 _amount, uint256 _locked_until)
+    modifier onlyUnlocked() {
+        require((locked_until[msg.sender] != 0) &&
+                (locked_until[msg.sender] < block.timestamp));
+        _;
+    }
+
+    function deposit(uint256 _amount, bool lock)
         external returns (bool) {
-        if (_locked_until < locked_until[msg.sender])
-            return false;
         if (token.transferFrom(msg.sender, address(this), _amount)) {
             balances[msg.sender] += _amount;
-            locked_until[msg.sender] = _locked_until;
-            Deposit(msg.sender, _amount, _locked_until); // event
+            locked_until[msg.sender] = 0;
+            Deposit(msg.sender, _amount); // event
+            if (lock) {
+                locked_until[msg.sender] = 0;
+            }
             return true;
         }
         return false;
+    }
+
+    function unlock() external {
+        locked_until[msg.sender] = block.timestamp + withdrawal_delay;
+        Unlock(msg.sender); // event
+    }
+
+    function lock() external {
+        locked_until[msg.sender] = 0;
+        Lock(msg.sender); // event
     }
 
     function withdraw(address _to)
-        external returns (bool) {
-        if (block.number < locked_until[msg.sender])
-            return false;
+        onlyUnlocked
+        external
+    {
         var _amount = balances[msg.sender];
-        if (token.transfer(_to, balances[msg.sender])) {
-            balances[msg.sender] = 0;
-            Withdraw(msg.sender, _to, _amount); // event
-            return true;
+        if (!token.transfer(_to, balances[msg.sender])) {
+            revert();
         }
-        return false;
+        balances[msg.sender] = 0;
+        Withdraw(msg.sender, _to, _amount); // event
     }
 
     function burn(address _whom, uint256 _burn)
-        external returns (bool) {
-        if (msg.sender != oracle)
-            revert();
+        onlyOracle
+        external
+        returns (bool)
+        {
         if (balances[_whom] < _burn)
             revert();
         if (token.transfer(0xdeadbeef, _burn)) {
@@ -74,9 +115,10 @@ contract GNTDeposit {
     }
 
     function reimburse(address _owner, address _payee, uint256 _reimbursement)
-        external returns (bool) {
-        if (msg.sender != oracle)
-            revert();
+        onlyOracle
+        external
+        returns (bool)
+        {
         if (balances[_owner] < _reimbursement)
             revert();
         if (token.transfer(_payee, _reimbursement)) {

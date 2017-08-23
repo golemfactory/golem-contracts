@@ -51,8 +51,8 @@ def fund_gntw(chain, gnt, gntw):
         assert v == gntw.call().balanceOf(addr)
 
 
-def deploy_oraclized_deposit(chain, factory_addr, token):
-    args = [token.address, factory_addr, "brass-oracle.eth"]
+def deploy_oraclized_deposit(chain, factory_addr, token, delay):
+    args = [token.address, factory_addr, "brass-oracle.eth", delay]
     cdep, tx = chain.provider.get_or_deploy_contract('GNTDeposit',
                                                      deploy_transaction={
                                                          'from': factory_addr
@@ -63,8 +63,6 @@ def deploy_oraclized_deposit(chain, factory_addr, token):
 
 
 def mysetup(chain):
-    # r_priv = tester.keys[9]
-    # r_pub = bitcoin.privtopub(r_priv)
     r_addr = tester.accounts[9]
     oracle_addr = tester.accounts[8]
     bn = chain.web3.eth.blockNumber
@@ -73,18 +71,18 @@ def mysetup(chain):
     gntw, gas = deploy_gntw(chain, r_addr, gnt)
     print("GNTW deployment cost: {}".format(gas['gasUsed']))
     fund_gntw(chain, gnt, gntw)
-    cdep, gas = deploy_oraclized_deposit(chain, oracle_addr, gntw)
+    cdep, gas = deploy_oraclized_deposit(chain, oracle_addr, gntw, lock_time())
     print("GNTDeposit deployment cost: {}".format(gas['gasUsed']))
     return r_addr, oracle_addr, gnt, gntw, cdep
 
 
-def do_deposit(chain, gnt, gntw, cdep, owner, deposit_size, lockUntil):
+def do_deposit(chain, gnt, gntw, cdep, owner, deposit_size):
     chain.wait.for_receipt(
         gntw.transact({'from': owner}).approve(cdep.address, deposit_size))
     assert deposit_size == gntw.call().allowance(owner, cdep.address)
     assert deposit_size < gntw.call().balanceOf(owner)
     chain.wait.for_receipt(
-        cdep.transact({'from': owner}).deposit(deposit_size, lockUntil))
+        cdep.transact({'from': owner}).deposit(deposit_size, True))
     assert deposit_size != gntw.call().allowance(owner, cdep.address)
     total_deposit = gntw.call().balanceOf(cdep.address)
     assert total_deposit == deposit_size
@@ -104,43 +102,55 @@ def test_windrawGNT(chain):
 
 
 def test_timelocks(chain):
-    bn = chain.web3.eth.blockNumber
-    lockUntil = bn+100
+    print("bt: {}".format(blockTimestamp(chain)))
+    chain.web3.testing.mine(1)
+    print("bt: {}".format(blockTimestamp(chain)))
+    chain.web3.testing.mine(1)
+    print("bt: {}".format(blockTimestamp(chain)))
+    chain.web3.testing.mine(1)
+    print("bt: {}".format(blockTimestamp(chain)))
+    chain.web3.testing.mine(1)
+    print("bt: {}".format(blockTimestamp(chain)))
     attacker_addr = tester.accounts[1]
     owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
     deposit_size = 100000
-    do_deposit(chain, gnt, gntw, cdep, owner_addr, deposit_size, lockUntil)
-    assert chain.web3.eth.blockNumber < lockUntil
+    do_deposit(chain, gnt, gntw, cdep, owner_addr, deposit_size)
     amnt = gntw.call().balanceOf(cdep.address)
-    # this withdraw is too early (blockNumber < lockUntil)
     chain.wait.for_receipt(
-        cdep.transact({'from': owner_addr}).withdraw(owner_addr))
+        cdep.transact({'from': owner_addr}).unlock())
+    bt = blockTimestamp(chain)
+    locked_until = cdep.call().getTimelock(owner_addr)
+    assert bt < locked_until
+    # this withdraw is too early (blockTimestamp < locked_until)
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            cdep.transact({'from': owner_addr}).withdraw(owner_addr))
     assert amnt == gntw.call().balanceOf(cdep.address)
     # by wrong person
-    chain.wait.for_receipt(
-        cdep.transact({'from': attacker_addr}).withdraw(attacker_addr))
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            cdep.transact({'from': attacker_addr}).withdraw(attacker_addr))
     assert amnt == gntw.call().balanceOf(cdep.address)
     # successful withdrawal
-    chain.web3.testing.mine(100)
-    assert chain.web3.eth.blockNumber > lockUntil
+    while blockTimestamp(chain) < locked_until:
+        chain.web3.testing.mine(1)
     chain.wait.for_receipt(
         cdep.transact({'from': owner_addr}).withdraw(owner_addr))
     assert 0 == cdep.call().balanceOf(owner_addr)
     # unsuccessful retry
     amnt = gntw.call().balanceOf(cdep.address)
-    chain.wait.for_receipt(
-        cdep.transact({'from': owner_addr}).withdraw(owner_addr))
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            cdep.transact({'from': owner_addr}).withdraw(owner_addr))
     assert 0 == cdep.call().balanceOf(owner_addr)
     assert amnt == gntw.call().balanceOf(cdep.address)
 
 
 def test_burn(chain):
-    bn = chain.web3.eth.blockNumber
-    lockUntil = bn+100
     owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
     deposit_size = 100000
     burn_size = int(deposit_size / 2)
-    do_deposit(chain, gnt, gntw, cdep, owner_addr, deposit_size, lockUntil)
+    do_deposit(chain, gnt, gntw, cdep, owner_addr, deposit_size)
     amnt = gntw.call().balanceOf(cdep.address)
     # not oracle
     with pytest.raises(TransactionFailed):
@@ -155,13 +165,11 @@ def test_burn(chain):
 
 
 def test_reimburse(chain):
-    bn = chain.web3.eth.blockNumber
-    lockUntil = bn+100
     owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
     other_addr = tester.accounts[1]
     deposit_size = 100000
     reimb_size = int(deposit_size / 2)
-    do_deposit(chain, gnt, gntw, cdep, owner_addr, deposit_size, lockUntil)
+    do_deposit(chain, gnt, gntw, cdep, owner_addr, deposit_size)
     amnt = gntw.call().balanceOf(cdep.address)
     # not oracle
     with pytest.raises(TransactionFailed):
@@ -176,3 +184,33 @@ def test_reimburse(chain):
                                                        reimb_size))
     assert amnt-reimb_size == cdep.call().balanceOf(owner_addr)
     assert amnt-reimb_size == gntw.call().balanceOf(cdep.address)
+
+
+def blockTimestamp(chain):
+    height = chain.web3.eth.blockNumber
+    block = chain.web3.eth.getBlock(height)
+    return block['timestamp']
+
+
+def lock_time():
+    return seconds(30)
+
+
+def weeks(n):
+    return n*days(7)
+
+
+def days(n):
+    return n*hours(24)
+
+
+def hours(n):
+    return n*minutes(60)
+
+
+def minutes(n):
+    return n*seconds(60)
+
+
+def seconds(n):
+    return n
