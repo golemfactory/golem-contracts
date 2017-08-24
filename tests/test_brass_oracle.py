@@ -82,7 +82,7 @@ def do_deposit(chain, gnt, gntw, cdep, owner, deposit_size):
     assert deposit_size == gntw.call().allowance(owner, cdep.address)
     assert deposit_size < gntw.call().balanceOf(owner)
     chain.wait.for_receipt(
-        cdep.transact({'from': owner}).deposit(deposit_size, True))
+        cdep.transact({'from': owner}).deposit(deposit_size))
     assert deposit_size != gntw.call().allowance(owner, cdep.address)
     total_deposit = gntw.call().balanceOf(cdep.address)
     assert total_deposit == deposit_size

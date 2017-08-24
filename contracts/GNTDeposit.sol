@@ -63,15 +63,12 @@ contract GNTDeposit {
         _;
     }
 
-    function deposit(uint256 _amount, bool lock)
+    function deposit(uint256 _amount)
         external returns (bool) {
         if (token.transferFrom(msg.sender, address(this), _amount)) {
             balances[msg.sender] += _amount;
             locked_until[msg.sender] = 0;
             Deposit(msg.sender, _amount); // event
-            if (lock) {
-                locked_until[msg.sender] = 0;
-            }
             return true;
         }
         return false;
