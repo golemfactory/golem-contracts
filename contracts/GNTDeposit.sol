@@ -95,7 +95,8 @@ contract GNTDeposit {
         if (!token.transfer(_to, balances[msg.sender])) {
             revert();
         }
-        balances[msg.sender] = 0;
+        delete balances[msg.sender];
+        delete locked_until[msg.sender];
         Withdraw(msg.sender, _to, _amount); // event
     }
 
@@ -108,6 +109,10 @@ contract GNTDeposit {
             revert();
         if (token.transfer(0xdeadbeef, _burn)) {
             balances[_whom] -= _burn;
+            if (balances[_whom] == 0) {
+                delete balances[_whom];
+                delete locked_until[_whom];
+            }
             Burn(_whom, _burn); // event
             return true;
         }
@@ -123,6 +128,10 @@ contract GNTDeposit {
             revert();
         if (token.transfer(_payee, _reimbursement)) {
             balances[_owner] -= _reimbursement;
+            if (balances[_owner] == 0) {
+                delete balances[_owner];
+                delete locked_until[_owner];
+            }
             Reimburse(_owner, _payee, _reimbursement); // event
             return true;
         }
