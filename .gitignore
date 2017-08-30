@@ -2,3 +2,5 @@ build
 .cache
 *.pyc
 /README.html
+venv
+.mypy_cache

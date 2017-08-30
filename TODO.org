@@ -1,0 +1,4 @@
+* DONE modernize contract's language style
+  CLOSED: [2017-08-23 śro 15:37]
+* TODO replace "always ticking" timelock with "withdrawal delay" mechanism
+* 

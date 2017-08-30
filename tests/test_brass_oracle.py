@@ -102,15 +102,6 @@ def test_windrawGNT(chain):
 
 
 def test_timelocks(chain):
-    print("bt: {}".format(blockTimestamp(chain)))
-    chain.web3.testing.mine(1)
-    print("bt: {}".format(blockTimestamp(chain)))
-    chain.web3.testing.mine(1)
-    print("bt: {}".format(blockTimestamp(chain)))
-    chain.web3.testing.mine(1)
-    print("bt: {}".format(blockTimestamp(chain)))
-    chain.web3.testing.mine(1)
-    print("bt: {}".format(blockTimestamp(chain)))
     attacker_addr = tester.accounts[1]
     owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
     deposit_size = 100000
