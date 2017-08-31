@@ -14,6 +14,7 @@ def test_close(chain):
     owner_addr, receiver_addr, gnt, gntw, cdep = mysetup(chain)
     pc = deploy_channels(chain, owner_addr, gntw)
     channel = prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc)
+    prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc)
     # bad caller
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
@@ -52,6 +53,17 @@ def test_close(chain):
     assert len(logs) == 1
     achannel = logs[0]["data"]
     assert achannel == eth_utils.encode_hex(channel)
+    # can't fund closed channel
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            pc.transact({'from': owner_addr}).fund(channel, receiver_addr, 1))
+    # can't withdraw from closed channel
+    owner_priv = ethereum.tester.keys[9]
+    V, ER, ES = sign_transfer(channel, owner_priv, receiver_addr, 10)
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            pc.transact({'from': receiver_addr}).withdraw(channel, 10,
+                                                          V, ER, ES))
 
 
 def test_withdraw(chain):
@@ -70,33 +82,48 @@ def test_withdraw(chain):
 
     owner_priv = ethereum.tester.keys[9]
     V, ER, ES = sign_transfer(channel, owner_priv, receiver_addr, 10)
+    # withdraw wrong amount
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             pc.transact({"from": receiver_addr}).withdraw(channel, 1000,
-                                                        V, ER, ES))
+                                                          V, ER, ES))
+    # withdraw wrong amount
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             pc.transact({"from": receiver_addr}).withdraw(channel, 5,
-                                                        V, ER, ES))
-    chain.wait.for_receipt(
-        pc.transact({"from": receiver_addr}).withdraw(channel, 10,
-                                                    V, ER, ES))
-    assert capacity() == c_cap - 10
-    assert shared_capacity() == sh_cap - 10
+                                                          V, ER, ES))
 
+    # use damaged signature
+    ES1 = bytearray(ES)
+    ES1[3] = (~ES1[3]) % 256  # bitwise not
+    ES1 = bytes(ES1)
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             pc.transact({"from": receiver_addr}).withdraw(channel, 10,
-                                                        V, ER, ES))
+                                                          V, ER, ES1))
+    # successful withdrawal
+    chain.wait.for_receipt(
+        pc.transact({"from": receiver_addr}).withdraw(channel, 10,
+                                                      V, ER, ES))
+    assert capacity() == c_cap - 10
+    assert shared_capacity() == sh_cap - 10
+
+    # reuse correctly signed cheque
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            pc.transact({"from": receiver_addr}).withdraw(channel, 10,
+                                                          V, ER, ES))
+    # try to double-spend by reversing order of applying cheques
     V, ER, ES = sign_transfer(channel, owner_priv, receiver_addr, 5)
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             pc.transact({"from": receiver_addr}).withdraw(channel, 5,
-                                                        V, ER, ES))
+                                                          V, ER, ES))
+    # get 10 more
     V, ER, ES = sign_transfer(channel, owner_priv, receiver_addr, 20)
     chain.wait.for_receipt(
         pc.transact({"from": receiver_addr}).withdraw(channel, 20,
-                                                    V, ER, ES))
+                                                      V, ER, ES))
     assert capacity() == c_cap - 20
     assert shared_capacity() == sh_cap - 20
 
@@ -127,6 +154,13 @@ def test_forceClose(chain):
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             pc.transact({'from': owner_addr}).fund(channel, receiver_addr, 100))
+    # can't withdraw from closed channel
+    owner_priv = ethereum.tester.keys[9]
+    V, ER, ES = sign_transfer(channel, owner_priv, receiver_addr, 10)
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            pc.transact({'from': receiver_addr}).withdraw(channel, 10,
+                                                          V, ER, ES))
 
 
 def sign_transfer(channel, owner_priv, receiver_addr, amount):
