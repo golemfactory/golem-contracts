@@ -125,35 +125,35 @@ def a2t(address):
     return eth_utils.encode_hex(utils.zpad(address, 32))
 
 
-def prep_a_channel(chain, owner_addr, payee_addr, gntw, pc):
-    topics = [owner_addr, payee_addr]
+def prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc):
+    topics = [owner_addr, receiver_addr]
     f_id = log_filter(chain, pc.address,
                       "NewChannel(address, address, bytes32)", topics)
     chain.wait.for_receipt(
-        pc.transact({'from': owner_addr}).createChannel(payee_addr))
+        pc.transact({'from': owner_addr}).createChannel(receiver_addr))
     logs = chain.web3.eth.getFilterLogs(f_id)
     channel = logs[0]["data"]
     print("channel: {}".format(channel))
     channel = eth_utils.decode_hex(channel[2:])
 
-    thevalue = pc.call().getValue(channel)
+    thevalue = pc.call().getDeposited(channel)
     assert thevalue == 0
 
-    thepayee = pc.call().getPayee(channel)
-    assert thepayee == eth_utils.encode_hex(payee_addr)
+    thereceiver = pc.call().getReceiver(channel)
+    assert thereceiver == eth_utils.encode_hex(receiver_addr)
 
     theowner = pc.call().getOwner(channel)
     assert theowner == eth_utils.encode_hex(owner_addr)
 
-    assert 0 == pc.call().getValue(channel)
+    assert 0 == pc.call().getDeposited(channel)
     deposit_size = 1234567
     chain.wait.for_receipt(
         gntw.transact({'from': owner_addr}).approve(pc.address,
                                                     deposit_size*2))
     chain.wait.for_receipt(
-        pc.transact({'from': owner_addr}).fund(channel, payee_addr,
+        pc.transact({'from': owner_addr}).fund(channel, receiver_addr,
                                                deposit_size))
-    assert deposit_size == pc.call().getValue(channel)
+    assert deposit_size == pc.call().getDeposited(channel)
     assert eth_utils.encode_hex(owner_addr) == pc.call().getOwner(channel)
     return channel
 

@@ -19,7 +19,7 @@ contract GNTDeposit {
     event Lock(address indexed _owner);
     event Unlock(address indexed _owner);
     event Burn(address indexed _who, uint256 _amount);
-    event Reimburse(address indexed _owner, address _payee, uint256 _amount);
+    event Reimburse(address indexed _owner, address _receiver, uint256 _amount);
 
     function GNTDeposit(address _token,
                         address _oracle,
@@ -116,20 +116,20 @@ contract GNTDeposit {
         return false;
     }
 
-    function reimburse(address _owner, address _payee, uint256 _reimbursement)
+    function reimburse(address _owner, address _receiver, uint256 _reimbursement)
         onlyOracle
         external
         returns (bool)
         {
         if (balances[_owner] < _reimbursement)
             revert();
-        if (token.transfer(_payee, _reimbursement)) {
+        if (token.transfer(_receiver, _reimbursement)) {
             balances[_owner] -= _reimbursement;
             if (balances[_owner] == 0) {
                 delete balances[_owner];
                 delete locked_until[_owner];
             }
-            Reimburse(_owner, _payee, _reimbursement); // event
+            Reimburse(_owner, _receiver, _reimbursement); // event
             return true;
         }
         return false;
