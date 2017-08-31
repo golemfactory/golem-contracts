@@ -1,6 +1,8 @@
 import pytest
+import ethereum
 import ethereum.utils as utils
 from ethereum.tester import TransactionFailed
+from secp256k1 import PrivateKey
 from test_brass_oracle import mysetup, seconds
 import eth_utils
 from eth_utils import (
@@ -25,20 +27,43 @@ def test_close(chain):
     achannel = logs[0]["data"]
     assert achannel == eth_utils.encode_hex(channel)
 
-# def test_withdraw(chain):
-#     pass
-# # in Solidity: sha3(sha3(secret), bytes32(_value)):
-# msghash = utils.sha3(utils.sha3(secret) + cpack(32, value))
-# assert len(msghash) == 32
-# (V, R, S) = sign_eth(msghash, r_priv)
-# ER = cpack(32, R)
-# ES = cpack(32, S)
+
+def test_withdraw(chain):
+    owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
+    pc = deploy_channels(chain, owner_addr, gntw)
+    channel = prep_a_channel(chain, owner_addr, oracle_addr, gntw, pc)
+    owner_priv = ethereum.tester.keys[9]
+    V, ER, ES = sign_transfer(channel, owner_priv, oracle_addr, 10)
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            pc.transact({"from": oracle_addr}).withdraw(channel, 1000,
+                                                        V, ER, ES))
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            pc.transact({"from": oracle_addr}).withdraw(channel, 5,
+                                                        V, ER, ES))
+    chain.wait.for_receipt(
+        pc.transact({"from": oracle_addr}).withdraw(channel, 10,
+                                                    V, ER, ES))
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            pc.transact({"from": oracle_addr}).withdraw(channel, 10,
+                                                        V, ER, ES))
+    V, ER, ES = sign_transfer(channel, owner_priv, oracle_addr, 5)
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            pc.transact({"from": oracle_addr}).withdraw(channel, 5,
+                                                        V, ER, ES))
 
 
-# def test_create(chain):
-#     owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
-#     pc = deploy_channels(chain, owner_addr, gntw)
-#     prep_a_channel(chain, owner_addr, oracle_addr, gntw, pc)
+def sign_transfer(channel, owner_priv, receiver_addr, amount):
+    # in Solidity: sha3(channel, bytes32(_value)):
+    msghash = utils.sha3(channel + cpack(32, amount))
+    assert len(msghash) == 32
+    (V, R, S) = sign_eth(msghash, owner_priv)
+    ER = cpack(32, R)
+    ES = cpack(32, S)
+    return V, ER, ES
 
 
 # HELPERS
@@ -104,17 +129,6 @@ def log_filter(chain, address, signature, topics):
     return chain.web3.eth.filter(obj).filter_id
 
 
-# def get_logs(rcpt, signature, topics):
-#     print("pytopics: {}".format(topics))
-#     return list(filter(lambda x: x["topics"] == topics, rcpt.logs))
-
-
-# def get_data(eth_log):
-#     d = eth_log["data"]
-#     n = 66 # length of hex_encoded string of 32 bytes
-#     return [d[i:i+66] for i in range(0, len(d), n)]
-
-
 def deploy_channels(chain, factory_addr, gntw):
     args = [gntw.address, seconds(30)]
     pc, tx = chain.provider.get_or_deploy_contract('GNTPaymentChannels',
@@ -134,4 +148,16 @@ def cpack(n, bts):
 
 
 def tobyteslist(n, bts):
-    return [ bts >> i & 0xff for i in reversed(range(0, n*8, 8)) ]
+    return [bts >> i & 0xff for i in reversed(range(0, n*8, 8))]
+
+
+def sign_eth(rawhash, priv):
+    pk = PrivateKey(priv, raw=True)
+    signature = pk.ecdsa_recoverable_serialize(
+        pk.ecdsa_sign_recoverable(rawhash, raw=True)
+    )
+    signature = signature[0] + utils.bytearray_to_bytestr([signature[1]])
+    v = utils.safe_ord(signature[64]) + 27
+    r = utils.big_endian_to_int(signature[0:32])
+    s = utils.big_endian_to_int(signature[32:64])
+    return (v, r, s)

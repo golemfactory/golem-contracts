@@ -122,6 +122,7 @@ contract GNTPaymentChannels {
         validSig(_channel, _value, _v, _r, _s)
         returns (bool) {
         PaymentChannel ch = channels[_channel];
+        require(ch.withdrawn < _value);
         var amount = _value - ch.withdrawn;
         // Receiver was cheated by owner, withdraw as much as possible
         if (ch.value < amount)
