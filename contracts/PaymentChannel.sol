@@ -34,7 +34,7 @@ contract GNTPaymentChannels {
 
     function createChannel(address _receiver)
         external {
-        bytes32 channel = sha3(id);
+        bytes32 channel = sha3(id++);
         var ch = PaymentChannel(true, msg.sender, _receiver, 0, 0, 0);
         channels[channel] = ch;
         NewChannel(msg.sender, _receiver, channel); // event
