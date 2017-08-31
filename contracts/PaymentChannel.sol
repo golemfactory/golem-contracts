@@ -10,10 +10,10 @@ contract GNTPaymentChannels {
         address owner;
         address receiver;
         uint256 deposited;
-        // withdrawn <= deposited
+        // withdrawn <= deposited (less or equal)
         uint256 withdrawn;
-        // 0 if locked
-        // | timestamp after which withdraw is possible
+        //   0, if locked
+        // | timestamp, after which withdraw is possible
         uint256 locked_until;
     }
 
@@ -120,7 +120,7 @@ contract GNTPaymentChannels {
         return false;
     }
 
-    // Receiver can withdraw multiple times.
+    // Receiver can withdraw multiple times without closing the channel
     function withdraw(bytes32 _channel, uint256 _value,
                       uint8 _v, bytes32 _r, bytes32 _s)
         external
@@ -166,7 +166,7 @@ contract GNTPaymentChannels {
         return _do_close(_channel, false);
     }
 
-    // Receiver can close channel and return owner its money.
+    // Receiver can close channel and return owner all of the funds.
     // Receiver should `withdraw` its own funds first!
     function forceClose(bytes32 _channel)
         external
