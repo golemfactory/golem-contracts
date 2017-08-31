@@ -1,4 +1,4 @@
-pragma solidity ^0.4.13;
+pragma solidity ^0.4.16;
 
 import "./GolemNetworkTokenWrapped.sol";
 
@@ -36,24 +36,24 @@ contract GNTDeposit {
         _;
     }
 
-    function balanceOf(address _owner) external constant returns (uint256) {
+    function balanceOf(address _owner) external view returns (uint256) {
         return balances[_owner];
     }
 
-    function isLocked(address _owner) external constant returns (bool) {
+    function isLocked(address _owner) external view returns (bool) {
         return locked_until[_owner] == 0;
     }
 
-    function isTimeLocked(address _owner) external constant returns (bool) {
+    function isTimeLocked(address _owner) external view returns (bool) {
         return locked_until[_owner] > block.timestamp;
     }
 
-    function isUnlocked(address _owner) external constant returns (bool) {
+    function isUnlocked(address _owner) external view returns (bool) {
         return ((locked_until[_owner] != 0) &&
                 (locked_until[_owner] < block.timestamp));
     }
 
-    function getTimelock(address _owner) external constant returns (uint256) {
+    function getTimelock(address _owner) external view returns (uint256) {
         return locked_until[_owner];
     }
 

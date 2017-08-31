@@ -1,4 +1,4 @@
-pragma solidity ^0.4.13;
+pragma solidity ^0.4.16;
 
 import "./GolemNetworkTokenWrapped.sol";
 
@@ -84,12 +84,14 @@ contract GNTPaymentChannels {
 
     function getOwner(bytes32 _channel)
         external
+        view
         returns (address) {
         return channels[_channel].owner;
     }
 
     function getPayee(bytes32 _channel)
         external
+        view
         returns (address) {
         return channels[_channel].receiver;
     }

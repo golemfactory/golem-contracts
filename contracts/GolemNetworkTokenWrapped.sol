@@ -1,4 +1,4 @@
-pragma solidity ^0.4.13;
+pragma solidity ^0.4.16;
 
 // ERC20-compliant wrapper token for GNT
 // adapted from code provided by u/JonnyLatte
@@ -9,13 +9,13 @@ contract TokenInterface {
 
     uint256 public totalSupply;
 
-    function balanceOf(address _owner) constant returns (uint256 balance);
+    function balanceOf(address _owner) view returns (uint256 balance);
     function transfer(address _to, uint256 _amount) returns (bool success);
     function transferFrom(
         address _from, address _to, uint256 _amount) returns (bool success);
     function approve(address _spender, uint256 _amount) returns (bool success);
     function allowance(
-        address _owner, address _spender) constant returns (uint256 remaining);
+        address _owner, address _spender) view returns (uint256 remaining);
 
     event Transfer(address indexed _from, address indexed _to, uint256 _amount);
     event Approval(
@@ -23,7 +23,7 @@ contract TokenInterface {
 }
 
 contract Token is TokenInterface {
-    function balanceOf(address _owner) constant returns (uint256 balance) {
+    function balanceOf(address _owner) view returns (uint256 balance) {
         return balances[_owner];
     }
 
@@ -63,7 +63,7 @@ contract Token is TokenInterface {
     }
 
     function allowance(address _owner,
-                       address _spender) constant returns (uint256 remaining) {
+                       address _spender) view returns (uint256 remaining) {
         return allowed[_owner][_spender];
     }
 }
@@ -115,7 +115,7 @@ contract GolemNetworkTokenWrapped is Token {
     }
 
     function getPersonalDepositAddress(
-                address depositer) constant returns (address depositAddress) {
+                address depositer) view returns (address depositAddress) {
         return depositSlots[depositer];
     }
 
