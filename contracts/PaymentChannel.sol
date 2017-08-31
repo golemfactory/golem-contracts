@@ -132,7 +132,7 @@ contract GNTPaymentChannels {
         validSig(_channel, _value, _v, _r, _s)
         returns (bool) {
         PaymentChannel ch = channels[_channel];
-        require(ch.withdrawn < _value);
+        require(ch.withdrawn < _value); // <- STRICT less than!
         var amount = _value - ch.withdrawn;
         if (amount < ch.deposited - ch.withdrawn)
             amount = ch.deposited - ch.withdrawn;
