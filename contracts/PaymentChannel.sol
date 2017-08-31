@@ -23,6 +23,7 @@ contract GNTPaymentChannels {
     event Withdraw(address indexed _owner, address indexed _receiver);
     event Unlock(address indexed _owner, address indexed _receiver, bytes32 _channel);
     event Close(address indexed _owner, address indexed _receiver, bytes32 _channel);
+    event ForceClose(address indexed _owner, address indexed _receiver, bytes32 _channel);
 
     function GNTPaymentChannels(address _token, uint256 _close_delay)
         public {
@@ -34,12 +35,11 @@ contract GNTPaymentChannels {
     function createChannel(address _receiver)
         external {
         bytes32 channel = sha3(id++);
-        var ch = PaymentChannel(true, msg.sender, _receiver, 0, 0, 0);
-        channels[channel] = ch;
+        channels[channel] = PaymentChannel(msg.sender, _receiver, 0, 0, 0);
         NewChannel(msg.sender, _receiver, channel); // event
     }
 
-    function getHash(bytes32 _channel, uint _value) constant returns(bytes32) {
+    function getHash(bytes32 _channel, uint _value) view returns(bytes32) {
         return sha3(_channel, _value);
     }
 
@@ -84,13 +84,29 @@ contract GNTPaymentChannels {
         return channels[_channel].receiver;
     }
 
+    function getWithdrawn(bytes32 _channel)
         external
+        view
+        returns (uint256) {
+        return channels[_channel].withdrawn;
+    }
+    function isLocked(bytes32 _channel) external view returns (bool) {
+        return channels[_channel].locked_until == 0;
+    }
+    function isTimeLocked(bytes32 _channel) external view returns (bool) {
+        return channels[_channel].locked_until > block.timestamp;
+    }
+    function isUnlocked(bytes32 _channel) external view returns (bool) {
+        return ((channels[_channel].locked_until != 0) &&
+                (channels[_channel].locked_until < block.timestamp));
     }
 
-    function fund(bytes32 _channel, uint256 _value)
+    function fund(bytes32 _channel, address _receiver, uint256 _value)
         external
         returns (bool) {
         PaymentChannel ch = channels[_channel];
+        // sanity check against channel reuse
+        require(ch.receiver == _receiver);
         if (token.transferFrom(msg.sender, address(this), _value)) {
             ch.value += _value;
             ch.locked_until = 0;
@@ -124,7 +140,7 @@ contract GNTPaymentChannels {
 
     function unlock(bytes32 _channel)
         external
-        /* onlyOwner(_channel) */
+        onlyOwner(_channel)
         returns (bool) {
         PaymentChannel ch = channels[_channel];
         ch.locked_until = block.timestamp + close_delay;
@@ -152,7 +168,7 @@ contract GNTPaymentChannels {
         PaymentChannel ch = channels[_channel];
         require(msg.sender == ch.receiver);
         if (token.transfer(ch.owner, ch.value)) {
-            Close(ch.owner, ch.receiver, _channel);
+            ForceClose(ch.owner, ch.receiver, _channel);
             delete channels[_channel];
             return true;
         }

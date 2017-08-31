@@ -14,6 +14,12 @@ def test_close(chain):
     owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
     pc = deploy_channels(chain, owner_addr, gntw)
     channel = prep_a_channel(chain, owner_addr, oracle_addr, gntw, pc)
+    # bad caller
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            pc.transact({'from': oracle_addr}).close(channel))
+    assert pc.call().isLocked(channel)
+    # unlock needed first
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             pc.transact({'from': owner_addr}).close(channel))
@@ -22,6 +28,26 @@ def test_close(chain):
                       "Unlock(address, address, bytes32)", topics)
     chain.wait.for_receipt(
         pc.transact({'from': owner_addr}).unlock(channel))
+    logs = chain.web3.eth.getFilterLogs(f_id)
+    assert len(logs) == 1
+    achannel = logs[0]["data"]
+    assert achannel == eth_utils.encode_hex(channel)
+    # bad caller
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            pc.transact({'from': oracle_addr}).close(channel))
+    f_id = log_filter(chain, pc.address,
+                      "Close(address, address, bytes32)", topics)
+    # too early, still in close_delay period
+    assert pc.call().isTimeLocked(channel)
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            pc.transact({'from': owner_addr}).close(channel))
+    while pc.call().isTimeLocked(channel):
+        chain.web3.testing.mine(1)
+    # proper close
+    chain.wait.for_receipt(
+        pc.transact({'from': owner_addr}).close(channel))
     logs = chain.web3.eth.getFilterLogs(f_id)
     assert len(logs) == 1
     achannel = logs[0]["data"]
@@ -56,6 +82,34 @@ def test_withdraw(chain):
                                                         V, ER, ES))
 
 
+def test_forceClose(chain):
+    owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
+    pc = deploy_channels(chain, owner_addr, gntw)
+    channel = prep_a_channel(chain, owner_addr, oracle_addr, gntw, pc)
+    # bad caller
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            pc.transact({'from': owner_addr}).forceClose(channel))
+    topics = [owner_addr, oracle_addr]
+    f_id = log_filter(chain, pc.address,
+                      "ForceClose(address, address, bytes32)", topics)
+    # proper caller
+    chain.wait.for_receipt(
+        pc.transact({'from': oracle_addr}).forceClose(channel))
+    logs = chain.web3.eth.getFilterLogs(f_id)
+    assert len(logs) == 1
+    achannel = logs[0]["data"]
+    assert achannel == eth_utils.encode_hex(channel)
+    # duplicate call
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            pc.transact({'from': oracle_addr}).forceClose(channel))
+    # can't fund closed channel
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            pc.transact({'from': owner_addr}).fund(channel, oracle_addr, 100))
+
+
 def sign_transfer(channel, owner_priv, receiver_addr, amount):
     # in Solidity: sha3(channel, bytes32(_value)):
     msghash = utils.sha3(channel + cpack(32, amount))
@@ -82,11 +136,7 @@ def prep_a_channel(chain, owner_addr, payee_addr, gntw, pc):
     print("channel: {}".format(channel))
     channel = eth_utils.decode_hex(channel[2:])
 
-    chain.web3.testing.mine(1)
-    isValid = pc.call().isValid(channel)
-    assert isValid
-
-    thevalue = pc.call().value(channel)
+    thevalue = pc.call().getValue(channel)
     assert thevalue == 0
 
     thepayee = pc.call().getPayee(channel)
@@ -95,20 +145,22 @@ def prep_a_channel(chain, owner_addr, payee_addr, gntw, pc):
     theowner = pc.call().getOwner(channel)
     assert theowner == eth_utils.encode_hex(owner_addr)
 
-    assert 0 == pc.call().value(channel)
+    assert 0 == pc.call().getValue(channel)
     deposit_size = 1234567
     chain.wait.for_receipt(
-        gntw.transact({'from': owner_addr}).approve(pc.address, deposit_size))
+        gntw.transact({'from': owner_addr}).approve(pc.address,
+                                                    deposit_size*2))
     chain.wait.for_receipt(
-        pc.transact({'from': owner_addr}).fund(channel, deposit_size))
-    assert deposit_size == pc.call().value(channel)
-    assert pc.call().isValid(channel)
-    assert pc.call({'from': owner_addr}).isMine(channel)
+        pc.transact({'from': owner_addr}).fund(channel, payee_addr,
+                                               deposit_size))
+    assert deposit_size == pc.call().getValue(channel)
+    assert eth_utils.encode_hex(owner_addr) == pc.call().getOwner(channel)
     return channel
 
 
 def log_filter(chain, address, signature, topics):
     bn = chain.web3.eth.blockNumber
+    topics = topics[:]
     if topics is not None:
         for i in range(len(topics)):
             topics[i] = a2t(topics[i])
@@ -118,7 +170,6 @@ def log_filter(chain, address, signature, topics):
     # enc_sig2 = rlp.utils.encode_hex(event_signature_to_log_topic(signature))
     # assert enc_sig == enc_sig2
     print("{} -> {}".format(signature, enc_sig))
-    topics = topics[:]
     topics.insert(0, enc_sig)
     obj = {
         'fromBlock': bn,
@@ -130,7 +181,7 @@ def log_filter(chain, address, signature, topics):
 
 
 def deploy_channels(chain, factory_addr, gntw):
-    args = [gntw.address, seconds(30)]
+    args = [gntw.address, seconds(600)]
     pc, tx = chain.provider.get_or_deploy_contract('GNTPaymentChannels',
                                                    deploy_transaction={
                                                        'from': factory_addr
