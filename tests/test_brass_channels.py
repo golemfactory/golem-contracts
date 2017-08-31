@@ -11,19 +11,19 @@ from eth_utils import (
 
 
 def test_close(chain):
-    owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
+    owner_addr, receiver_addr, gnt, gntw, cdep = mysetup(chain)
     pc = deploy_channels(chain, owner_addr, gntw)
-    channel = prep_a_channel(chain, owner_addr, oracle_addr, gntw, pc)
+    channel = prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc)
     # bad caller
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({'from': oracle_addr}).close(channel))
+            pc.transact({'from': receiver_addr}).close(channel))
     assert pc.call().isLocked(channel)
     # unlock needed first
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             pc.transact({'from': owner_addr}).close(channel))
-    topics = [owner_addr, oracle_addr]
+    topics = [owner_addr, receiver_addr]
     f_id = log_filter(chain, pc.address,
                       "Unlock(address, address, bytes32)", topics)
     chain.wait.for_receipt(
@@ -35,7 +35,7 @@ def test_close(chain):
     # bad caller
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({'from': oracle_addr}).close(channel))
+            pc.transact({'from': receiver_addr}).close(channel))
     f_id = log_filter(chain, pc.address,
                       "Close(address, address, bytes32)", topics)
     # too early, still in close_delay period
@@ -55,47 +55,66 @@ def test_close(chain):
 
 
 def test_withdraw(chain):
-    owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
+    owner_addr, receiver_addr, gnt, gntw, cdep = mysetup(chain)
     pc = deploy_channels(chain, owner_addr, gntw)
-    channel = prep_a_channel(chain, owner_addr, oracle_addr, gntw, pc)
+    channel = prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc)
+
+    def capacity():
+        return pc.call().getDeposited(channel) - pc.call().getWithdrawn(channel)
+
+    def shared_capacity():
+        return gntw.call().balanceOf(pc.address)
+
+    c_cap = capacity()
+    sh_cap = shared_capacity()
+
     owner_priv = ethereum.tester.keys[9]
-    V, ER, ES = sign_transfer(channel, owner_priv, oracle_addr, 10)
+    V, ER, ES = sign_transfer(channel, owner_priv, receiver_addr, 10)
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({"from": oracle_addr}).withdraw(channel, 1000,
+            pc.transact({"from": receiver_addr}).withdraw(channel, 1000,
                                                         V, ER, ES))
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({"from": oracle_addr}).withdraw(channel, 5,
+            pc.transact({"from": receiver_addr}).withdraw(channel, 5,
                                                         V, ER, ES))
     chain.wait.for_receipt(
-        pc.transact({"from": oracle_addr}).withdraw(channel, 10,
+        pc.transact({"from": receiver_addr}).withdraw(channel, 10,
                                                     V, ER, ES))
+    assert capacity() == c_cap - 10
+    assert shared_capacity() == sh_cap - 10
+
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({"from": oracle_addr}).withdraw(channel, 10,
+            pc.transact({"from": receiver_addr}).withdraw(channel, 10,
                                                         V, ER, ES))
-    V, ER, ES = sign_transfer(channel, owner_priv, oracle_addr, 5)
+    V, ER, ES = sign_transfer(channel, owner_priv, receiver_addr, 5)
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({"from": oracle_addr}).withdraw(channel, 5,
+            pc.transact({"from": receiver_addr}).withdraw(channel, 5,
                                                         V, ER, ES))
+    V, ER, ES = sign_transfer(channel, owner_priv, receiver_addr, 20)
+    chain.wait.for_receipt(
+        pc.transact({"from": receiver_addr}).withdraw(channel, 20,
+                                                    V, ER, ES))
+    assert capacity() == c_cap - 20
+    assert shared_capacity() == sh_cap - 20
 
 
 def test_forceClose(chain):
-    owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
+    owner_addr, receiver_addr, gnt, gntw, cdep = mysetup(chain)
     pc = deploy_channels(chain, owner_addr, gntw)
-    channel = prep_a_channel(chain, owner_addr, oracle_addr, gntw, pc)
+    channel = prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc)
     # bad caller
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             pc.transact({'from': owner_addr}).forceClose(channel))
-    topics = [owner_addr, oracle_addr]
+    topics = [owner_addr, receiver_addr]
     f_id = log_filter(chain, pc.address,
                       "ForceClose(address, address, bytes32)", topics)
     # proper caller
     chain.wait.for_receipt(
-        pc.transact({'from': oracle_addr}).forceClose(channel))
+        pc.transact({'from': receiver_addr}).forceClose(channel))
     logs = chain.web3.eth.getFilterLogs(f_id)
     assert len(logs) == 1
     achannel = logs[0]["data"]
@@ -103,11 +122,11 @@ def test_forceClose(chain):
     # duplicate call
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({'from': oracle_addr}).forceClose(channel))
+            pc.transact({'from': receiver_addr}).forceClose(channel))
     # can't fund closed channel
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({'from': owner_addr}).fund(channel, oracle_addr, 100))
+            pc.transact({'from': owner_addr}).fund(channel, receiver_addr, 100))
 
 
 def sign_transfer(channel, owner_priv, receiver_addr, amount):

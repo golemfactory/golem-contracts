@@ -73,6 +73,13 @@ contract GNTPaymentChannels {
         return ch.deposited;
     }
 
+    function getWithdrawn(bytes32 _channel)
+        external
+        view
+        returns (uint256) {
+        return channels[_channel].withdrawn;
+    }
+
     function getOwner(bytes32 _channel)
         external
         view
@@ -85,13 +92,6 @@ contract GNTPaymentChannels {
         view
         returns (address) {
         return channels[_channel].receiver;
-    }
-
-    function getWithdrawn(bytes32 _channel)
-        external
-        view
-        returns (uint256) {
-        return channels[_channel].withdrawn;
     }
 
     function isLocked(bytes32 _channel) external view returns (bool) {
@@ -134,7 +134,8 @@ contract GNTPaymentChannels {
         PaymentChannel ch = channels[_channel];
         require(ch.withdrawn < _value); // <- STRICT less than!
         var amount = _value - ch.withdrawn;
-        if (amount < ch.deposited - ch.withdrawn)
+        // Receiver has been cheated! Withdraw as much as possible.
+        if (ch.deposited - ch.withdrawn < amount)
             amount = ch.deposited - ch.withdrawn;
         return _do_withdraw(_channel, amount);
     }
