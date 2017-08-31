@@ -7,7 +7,6 @@ contract GNTPaymentChannels {
     GolemNetworkTokenWrapped public token;
 
     struct PaymentChannel {
-        bool is_valid;
         address owner;
         address receiver;
         uint256 value;
@@ -40,17 +39,6 @@ contract GNTPaymentChannels {
         NewChannel(msg.sender, _receiver, channel); // event
     }
 
-    function setValid(bytes32 _channel, bool value)
-        external {
-        channels[_channel].is_valid = value;
-    }
-
-    function isValid(bytes32 _channel)
-        external
-        returns (bool) {
-        return channels[_channel].is_valid;
-    }
-
     function getHash(bytes32 _channel, uint _value) constant returns(bytes32) {
         return sha3(_channel, _value);
     }
@@ -74,13 +62,13 @@ contract GNTPaymentChannels {
         _;
     }
 
-    function value(bytes32 _channel)
+    function getValue(bytes32 _channel)
         external
+        view
         returns (uint256) {
         PaymentChannel ch = channels[_channel];
         return ch.value;
     }
-
 
     function getOwner(bytes32 _channel)
         external
@@ -96,11 +84,7 @@ contract GNTPaymentChannels {
         return channels[_channel].receiver;
     }
 
-    function isMine(bytes32 _channel)
         external
-        returns (bool) {
-        PaymentChannel ch = channels[_channel];
-        return ch.owner == msg.sender;
     }
 
     function fund(bytes32 _channel, uint256 _value)
@@ -110,7 +94,6 @@ contract GNTPaymentChannels {
         if (token.transferFrom(msg.sender, address(this), _value)) {
             ch.value += _value;
             ch.locked_until = 0;
-            ch.is_valid = true;
             Fund(ch.owner, ch.receiver, _channel); // event
             return true;
         }
