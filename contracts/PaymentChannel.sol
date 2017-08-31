@@ -22,7 +22,7 @@ contract GNTPaymentChannels {
     uint256 close_delay;
 
     event NewChannel(address indexed _owner, address indexed _receiver, bytes32 _channel);
-    event Fund(address indexed _owner, address indexed _receiver, bytes32 _channel);
+    event Fund(address indexed _receiver, bytes32 indexed _channel, uint256 amount);
     event Withdraw(address indexed _owner, address indexed _receiver);
     event Unlock(address indexed _owner, address indexed _receiver, bytes32 _channel);
     event Close(address indexed _owner, address indexed _receiver, bytes32 _channel);
@@ -42,13 +42,9 @@ contract GNTPaymentChannels {
         NewChannel(msg.sender, _receiver, channel); // event
     }
 
-    function getHash(bytes32 _channel, uint _value) view returns(bytes32) {
-        return sha3(_channel, _value);
-    }
-
     modifier validSig(bytes32 _ch, uint _value,
                       uint8 _v, bytes32 _r, bytes32 _s) {
-        require((channels[_ch].owner) == ecrecover(getHash(_ch, _value), _v, _r, _s));
+        require((channels[_ch].owner) == ecrecover(sha3(_ch, _value), _v, _r, _s));
         _;
     }
 
@@ -118,8 +114,7 @@ contract GNTPaymentChannels {
         if (token.transferFrom(msg.sender, address(this), _amount)) {
             ch.deposited += _amount;
             ch.locked_until = 0;
-            // todo drop ch.owner and add amount
-            Fund(ch.owner, ch.receiver, _channel); // event
+            Fund(ch.receiver, _channel, _amount); // event
             return true;
         }
         return false;

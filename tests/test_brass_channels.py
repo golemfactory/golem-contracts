@@ -28,7 +28,7 @@ def test_close(chain):
                       "Unlock(address, address, bytes32)", topics)
     chain.wait.for_receipt(
         pc.transact({'from': owner_addr}).unlock(channel))
-    logs = chain.web3.eth.getFilterLogs(f_id)
+    logs = get_logs(f_id)
     assert len(logs) == 1
     achannel = logs[0]["data"]
     assert achannel == eth_utils.encode_hex(channel)
@@ -48,7 +48,7 @@ def test_close(chain):
     # proper close
     chain.wait.for_receipt(
         pc.transact({'from': owner_addr}).close(channel))
-    logs = chain.web3.eth.getFilterLogs(f_id)
+    logs = get_logs(f_id)
     assert len(logs) == 1
     achannel = logs[0]["data"]
     assert achannel == eth_utils.encode_hex(channel)
@@ -115,7 +115,7 @@ def test_forceClose(chain):
     # proper caller
     chain.wait.for_receipt(
         pc.transact({'from': receiver_addr}).forceClose(channel))
-    logs = chain.web3.eth.getFilterLogs(f_id)
+    logs = get_logs(f_id)
     assert len(logs) == 1
     achannel = logs[0]["data"]
     assert achannel == eth_utils.encode_hex(channel)
@@ -148,9 +148,10 @@ def prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc):
     topics = [owner_addr, receiver_addr]
     f_id = log_filter(chain, pc.address,
                       "NewChannel(address, address, bytes32)", topics)
-    chain.wait.for_receipt(
+    tx = chain.wait.for_receipt(
         pc.transact({'from': owner_addr}).createChannel(receiver_addr))
-    logs = chain.web3.eth.getFilterLogs(f_id)
+    print("tx: {}".format(tx))
+    logs = get_logs(f_id)
     channel = logs[0]["data"]
     print("channel: {}".format(channel))
     channel = eth_utils.decode_hex(channel[2:])
@@ -169,9 +170,17 @@ def prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc):
     chain.wait.for_receipt(
         gntw.transact({'from': owner_addr}).approve(pc.address,
                                                     deposit_size*2))
-    chain.wait.for_receipt(
+    topics = [receiver_addr, channel]
+    f_id = log_filter(chain, pc.address,
+                      "Fund(address, bytes32, uint256)", topics)
+    tx = chain.wait.for_receipt(
         pc.transact({'from': owner_addr}).fund(channel, receiver_addr,
                                                deposit_size))
+    print("tx: {}".format(tx))
+    logs = get_logs(f_id)
+    log_amount = int.from_bytes(eth_utils.decode_hex(logs[0]["data"]),
+                                byteorder='big')
+    assert log_amount == deposit_size
     assert deposit_size == pc.call().getDeposited(channel)
     assert eth_utils.encode_hex(owner_addr) == pc.call().getOwner(channel)
     return channel
@@ -188,15 +197,29 @@ def log_filter(chain, address, signature, topics):
     enc_sig = eth_utils.encode_hex(event_signature_to_log_topic(signature))
     # enc_sig2 = rlp.utils.encode_hex(event_signature_to_log_topic(signature))
     # assert enc_sig == enc_sig2
-    print("{} -> {}".format(signature, enc_sig))
     topics.insert(0, enc_sig)
+    print("{} -> {}".format(signature, topics))
     obj = {
         'fromBlock': bn,
         'toBlock': "latest",
         'address': address,
         'topics': topics
     }
-    return chain.web3.eth.filter(obj).filter_id
+    return (chain, chain.web3.eth.filter(obj).filter_id, enc_sig)
+
+
+def get_logs(f_id):
+    chain, id, enc_sig = f_id
+    logs = chain.web3.eth.getFilterLogs(id)
+    print("logs: {}".format(logs))
+
+    def l(x):
+        print("topic: {}; enc_sig: {}".format(x["topics"][0], enc_sig))
+        return (x["topics"][0]) == enc_sig
+
+    lf = list(filter(l, logs))
+    print("lf: {}".format(lf))
+    return lf
 
 
 def deploy_channels(chain, factory_addr, gntw):
