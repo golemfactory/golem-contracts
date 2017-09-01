@@ -24,7 +24,7 @@ contract GNTPaymentChannels {
     event NewChannel(address indexed _owner, address indexed _receiver, bytes32 _channel);
     event Fund(address indexed _receiver, bytes32 indexed _channel, uint256 amount);
     event Withdraw(address indexed _owner, address indexed _receiver);
-    event Unlock(address indexed _owner, address indexed _receiver, bytes32 _channel);
+    event TimeLocked(address indexed _owner, address indexed _receiver, bytes32 _channel);
     event Close(address indexed _owner, address indexed _receiver, bytes32 _channel);
     event ForceClose(address indexed _owner, address indexed _receiver, bytes32 _channel);
 
@@ -153,7 +153,7 @@ contract GNTPaymentChannels {
         onlyOwner(_channel) {
         PaymentChannel ch = channels[_channel];
         ch.locked_until = block.timestamp + close_delay;
-        Unlock(ch.owner, ch.receiver, _channel);
+        TimeLocked(ch.owner, ch.receiver, _channel);
     }
 
     // Owner can close channel to reclaim its money.

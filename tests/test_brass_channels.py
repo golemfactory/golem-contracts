@@ -26,7 +26,7 @@ def test_close(chain):
             pc.transact({'from': owner_addr}).close(channel))
     topics = [owner_addr, receiver_addr]
     f_id = log_filter(chain, pc.address,
-                      "Unlock(address, address, bytes32)", topics)
+                      "TimeLocked(address, address, bytes32)", topics)
     chain.wait.for_receipt(
         pc.transact({'from': owner_addr}).unlock(channel))
     logs = get_logs(f_id)

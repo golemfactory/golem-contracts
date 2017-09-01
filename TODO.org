@@ -1,5 +1,12 @@
-* DONE modernize contract's language style
-  CLOSED: [2017-08-23 śro 15:37]
- * DONE replace "always ticking" timelock with "withdrawal delay" mechanism
-  CLOSED: [2017-09-01 pią 11:08]
-* TODO limit oracle's power to amounts declared by parties
+* contracts
+** DONE modernize contract's language style
+   CLOSED: [2017-08-23 śro 15:37]
+** DONE replace "always ticking" timelock with "withdrawal delay" mechanism
+   CLOSED: [2017-09-01 pią 11:08]
+** TODO limit oracle's power to amounts declared by parties
+** TODO consider createChannel to be dependent on arguments
+  and not on hidden variable id; one channel per (owner, receiver) pair
+** TODO rework GNTW to be ERC223 compliant
+   and merge channel creation with channel funding in single transaction
+** DONE reconsider names of some of events
+   CLOSED: [2017-09-01 pią 12:16]
