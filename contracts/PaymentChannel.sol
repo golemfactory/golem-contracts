@@ -54,8 +54,7 @@ contract GNTPaymentChannels {
     }
 
     modifier unlocked(bytes32 _channel) {
-        require(channels[_channel].locked_until > 0);
-        require(block.timestamp > channels[_channel].locked_until);
+        require(isUnlocked(_channel));
         _;
     }
 
@@ -90,15 +89,15 @@ contract GNTPaymentChannels {
         return channels[_channel].receiver;
     }
 
-    function isLocked(bytes32 _channel) external view returns (bool) {
+    function isLocked(bytes32 _channel) public returns (bool) {
         return channels[_channel].locked_until == 0;
     }
 
-    function isTimeLocked(bytes32 _channel) external view returns (bool) {
+    function isTimeLocked(bytes32 _channel) public view returns (bool) {
         return channels[_channel].locked_until > block.timestamp;
     }
 
-    function isUnlocked(bytes32 _channel) external view returns (bool) {
+    function isUnlocked(bytes32 _channel) public view returns (bool) {
         return ((channels[_channel].locked_until != 0) &&
                 (channels[_channel].locked_until < block.timestamp));
     }
