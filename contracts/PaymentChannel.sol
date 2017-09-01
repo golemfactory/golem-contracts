@@ -94,7 +94,7 @@ contract GNTPaymentChannels {
     }
 
     function isTimeLocked(bytes32 _channel) public view returns (bool) {
-        return channels[_channel].locked_until > block.timestamp;
+        return channels[_channel].locked_until >= block.timestamp;
     }
 
     function isUnlocked(bytes32 _channel) public view returns (bool) {
