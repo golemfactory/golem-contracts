@@ -10,3 +10,12 @@
    and merge channel creation with channel funding in single transaction
 ** DONE reconsider names of some of events
    CLOSED: [2017-09-01 pią 12:16]
+** TODO golem node id registration in the deposit
+
+* on deposits security
+** timeout nie jest konieczny bo oracle nie widzi wszystkich spraw
+*** counter-argument: other guys can attempt to reuse those to replay
+** jezeli "dochody" oracla sa w cold wallet, to nie mozna zarobic hackując oracla
+** jeżeli poszkodowany nie może zarobić na byciu poszkodowanym, to niema powodu atakować oracla
+** palenie części tokenów winnego jest lepsze od redystrybucji tych tokenów ponieważ
+    powoduje to że bycie ofiarą nie jest dochodowe
