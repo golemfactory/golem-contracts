@@ -147,7 +147,7 @@ contract GNTPaymentChannels {
     }
 
     // If receiver does not want to close channel, owner can do that
-    // after grace period (close_delay).
+    // by calling unlock and waiting for grace period (close_delay).
     function unlock(bytes32 _channel)
         external
         onlyOwner(_channel) {
