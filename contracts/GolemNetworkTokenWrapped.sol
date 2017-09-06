@@ -43,8 +43,8 @@ contract Token is TokenInterface {
                            address _to,
                            uint256 _amount) internal returns (bool success) {
         if (balances[_from] >= _amount
-            /* && allowed[_from][msg.sender] >= _amount */
-            /* && _amount > 0 */) {
+            && allowed[_from][msg.sender] >= _amount
+            && _amount > 0 ) {
 
             balances[_to] += _amount;
             balances[_from] -= _amount;
