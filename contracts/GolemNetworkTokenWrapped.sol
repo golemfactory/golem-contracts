@@ -1,42 +1,78 @@
 pragma solidity ^0.4.16;
 
-// ERC20-compliant wrapper token for GNT
-// adapted from code provided by u/JonnyLatte
+import "./ERC223/ERC223.sol";
+import "./ERC223/ERC223ReceivingContract.sol";
+import "./ERC20/ERC20Basic.sol";
+import "./ERC20/ERC20Extended.sol";
 
-contract TokenInterface {
-    mapping (address => uint256) balances;
-    mapping (address => mapping (address => uint256)) allowed;
+// ERC223 and ERC20 -compliant wrapper token for GNT
+// reworked from original GNTW implementation.
+// Original GNTW implementation notice:
+// // ERC20-compliant wrapper token for GNT
+// // adapted from code provided by u/JonnyLatte
 
-    uint256 public totalSupply;
 
-    function balanceOf(address _owner) view returns (uint256 balance);
-    function transfer(address _to, uint256 _amount) returns (bool success);
-    function transferFrom(
-        address _from, address _to, uint256 _amount) returns (bool success);
-    function approve(address _spender, uint256 _amount) returns (bool success);
-    function allowance(
-        address _owner, address _spender) view returns (uint256 remaining);
+// ERC223 is used because it is easier to handle than ERC20
+// ERC20 is used because of lack of support of ERC223 from Raiden
+contract Token is ERC223, ERC20Extended, ERC20Basic {
 
-    event Transfer(address indexed _from, address indexed _to, uint256 _amount);
-    event Approval(
-        address indexed _owner, address indexed _spender, uint256 _amount);
-}
-
-contract Token is TokenInterface {
     function balanceOf(address _owner) view returns (uint256 balance) {
         return balances[_owner];
     }
 
-    function _transfer(address _to,
-                       uint256 _amount) internal returns (bool success) {
-        if (balances[msg.sender] >= _amount && _amount > 0) {
-            balances[msg.sender] -= _amount;
-            balances[_to] += _amount;
-            Transfer(msg.sender, _to, _amount);
-            return true;
-        } else {
-           return false;
+    // Function that is called when a user or another contract wants to transfer funds.
+    function _transfer(address _to, uint _value, bytes _data)
+        returns (bool success)
+    {
+        uint codeLength;
+
+        assembly {
+            // Retrieve the size of the code on target address, this needs assembly .
+            codeLength := extcodesize(_to)
         }
+
+        var senderBalance = balances[msg.sender];
+        if (senderBalance >= _value && _value > 0) {
+            senderBalance -= _value;
+            balances[msg.sender] = senderBalance;
+            balances[_to] += _value;
+            if(codeLength>0) {
+                ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
+                // tokenFallback does revert() if anything goes wrong
+                receiver.tokenFallback(msg.sender, _value, _data);
+            }
+            Transfer(msg.sender, _to, _value);
+            return true;
+        }
+        return false;
+    }
+
+    // Standard function transfer similar to ERC20 transfer with no _data .
+    // Added due to backwards compatibility reasons .
+    function _transfer(address _to, uint _value)
+        returns (bool success)
+    {
+        uint codeLength;
+
+        assembly {
+            // Retrieve the size of the code on target address, this needs assembly .
+            codeLength := extcodesize(_to)
+        }
+
+        var senderBalance = balances[msg.sender];
+        if (senderBalance >= _value && _value > 0) {
+            senderBalance -= _value;
+            balances[msg.sender] = senderBalance;
+            balances[_to] += _value;
+            if(codeLength>0) {
+                ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
+                bytes empty;
+                receiver.tokenFallback(msg.sender, _value, empty);
+            }
+            Transfer(msg.sender, _to, _value);
+            return true;
+        }
+        return false;
     }
 
     function _transferFrom(address _from,
@@ -44,7 +80,7 @@ contract Token is TokenInterface {
                            uint256 _amount) internal returns (bool success) {
         if (balances[_from] >= _amount
             && allowed[_from][msg.sender] >= _amount
-            && _amount > 0 ) {
+            && _amount > 0) {
 
             balances[_to] += _amount;
             balances[_from] -= _amount;
@@ -84,10 +120,10 @@ contract DepositSlot {
     }
 
     function collect() onlyWrapper {
-        uint amount = TokenInterface(GNT).balanceOf(this);
+        uint amount = ERC20Basic(GNT).balanceOf(this);
         if (amount == 0) revert();
 
-        TokenInterface(GNT).transfer(wrapper, amount);
+        ERC20Basic(GNT).transfer(wrapper, amount);
     }
 }
 
@@ -125,7 +161,7 @@ contract GolemNetworkTokenWrapped is Token {
 
         DepositSlot(depositSlot).collect();
 
-        uint balance = TokenInterface(GNT).balanceOf(this);
+        uint balance = ERC20Basic(GNT).balanceOf(this);
         if (balance <= totalSupply) revert();
 
         uint freshGNTW = balance - totalSupply;
@@ -144,6 +180,17 @@ contract GolemNetworkTokenWrapped is Token {
         }
     }
 
+    function transfer(address _to,
+                      uint256 _amount,
+                      bytes _data) returns (bool success) {
+        if (_to == address(this)) {
+            withdrawGNT(_amount);   // convert back to GNT
+            return true;
+        } else {
+            return _transfer(_to, _amount, _data);  // standard transfer
+        }
+    }
+
     function transferFrom(address _from,
                           address _to,
                           uint256 _amount) returns (bool success) {
@@ -159,6 +206,6 @@ contract GolemNetworkTokenWrapped is Token {
         totalSupply -= amount;
         Transfer(msg.sender, address(this), amount);
 
-        TokenInterface(GNT).transfer(msg.sender, amount);
+        ERC20Basic(GNT).transfer(msg.sender, amount);
     }
 }

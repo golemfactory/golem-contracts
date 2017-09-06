@@ -8,3 +8,6 @@ test: compile
 
 channels: compile
 	pytest tests/test_brass_channels.py
+
+oracle: compile
+	pytest tests/test_brass_oracle.py

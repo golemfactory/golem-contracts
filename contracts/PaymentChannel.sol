@@ -1,8 +1,9 @@
 pragma solidity ^0.4.16;
 
 import "./GolemNetworkTokenWrapped.sol";
+import "./ERC223/ERC223ReceivingContract.sol";
 
-contract GNTPaymentChannels {
+contract GNTPaymentChannels is ERC223ReceivingContract {
 
     GolemNetworkTokenWrapped public token;
 
@@ -33,6 +34,10 @@ contract GNTPaymentChannels {
         token = GolemNetworkTokenWrapped(_token);
         id = 0;
         close_delay = _close_delay;
+    }
+
+    function tokenFallback(address _from, uint _value, bytes _data)
+        {
     }
 
     function createChannel(address _receiver)

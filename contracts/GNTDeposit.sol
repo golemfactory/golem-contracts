@@ -1,8 +1,9 @@
 pragma solidity ^0.4.16;
 
 import "./GolemNetworkTokenWrapped.sol";
+import "./ERC223/ERC223ReceivingContract.sol";
 
-contract GNTDeposit {
+contract GNTDeposit is ERC223ReceivingContract {
     string public ensaddress;
     address public oracle;
     uint256 public withdrawal_delay;
@@ -29,6 +30,9 @@ contract GNTDeposit {
         oracle = _oracle;
         ensaddress = _ensaddress;
         withdrawal_delay = _withdrawal_delay;
+    }
+
+    function tokenFallback(address _from, uint _value, bytes _data) {
     }
 
     modifier onlyOracle() {
