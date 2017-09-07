@@ -83,7 +83,6 @@ contract GNTDeposit is ERC223ReceivingContract {
         returns (bool)
     {
         balances[_beneficiary] += _amount;
-        locked_until[_beneficiary] = 0;
         Deposit(_beneficiary, _amount); // event
         return true;
     }
