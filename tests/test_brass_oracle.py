@@ -106,6 +106,7 @@ def do_deposit_223(chain, gnt, gntw, cdep, owner, deposit_size):
     total_deposit = gntw.call().balanceOf(cdep.address)
     assert total_deposit == deposit_size + initial_total_deposit
     assert deposit_size == cdep.call().balanceOf(owner) - initial_dep_size
+    assert cdep.call().isLocked(owner)
 
 
 def test_windrawGNT(chain):
@@ -121,39 +122,46 @@ def test_windrawGNT(chain):
 
 
 def test_timelocks(chain):
-    attacker_addr = tester.accounts[1]
-    owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
+    attacker = tester.accounts[1]
+    owner, _, gnt, gntw, cdep = mysetup(chain)
     deposit_size = 100000
-    do_deposit_20(chain, gnt, gntw, cdep, owner_addr, int(deposit_size / 2))
-    do_deposit_223(chain, gnt, gntw, cdep, owner_addr, int(deposit_size / 2))
+    do_deposit_20(chain, gnt, gntw, cdep, owner, int(deposit_size / 2))
+    do_deposit_223(chain, gnt, gntw, cdep, owner, int(deposit_size / 2))
     amnt = gntw.call().balanceOf(cdep.address)
+    owner_deposit = cdep.call().balanceOf(owner)
     chain.wait.for_receipt(
-        cdep.transact({'from': owner_addr}).unlock())
+        cdep.transact({'from': owner}).unlock())
     bt = blockTimestamp(chain)
-    locked_until = cdep.call().getTimelock(owner_addr)
+    locked_until = cdep.call().getTimelock(owner)
     assert bt < locked_until
     # this withdraw is too early (blockTimestamp < locked_until)
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            cdep.transact({'from': owner_addr}).withdraw(owner_addr))
+            cdep.transact({'from': owner}).withdraw(owner))
     assert amnt == gntw.call().balanceOf(cdep.address)
     # by wrong person
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            cdep.transact({'from': attacker_addr}).withdraw(attacker_addr))
+            cdep.transact({'from': attacker}).withdraw(attacker))
     assert amnt == gntw.call().balanceOf(cdep.address)
     # successful withdrawal
+    assert owner_deposit <= cdep.call().balanceOf(owner)
     while blockTimestamp(chain) < locked_until:
         chain.web3.testing.mine(1)
+    assert cdep.call().isUnlocked(owner)
+    assert owner != gntw.address
+    assert not gntw.call().isContract(owner)
+    assert gntw.call().balanceOf(cdep.address) >= cdep.call().balanceOf(owner)
     chain.wait.for_receipt(
-        cdep.transact({'from': owner_addr}).withdraw(owner_addr))
-    assert 0 == cdep.call().balanceOf(owner_addr)
+        cdep.transact({'from': owner}).withdraw(owner))
+    assert 0 == cdep.call().balanceOf(owner)
+    assert amnt - owner_deposit == gntw.call().balanceOf(cdep.address)
     # unsuccessful retry
     amnt = gntw.call().balanceOf(cdep.address)
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            cdep.transact({'from': owner_addr}).withdraw(owner_addr))
-    assert 0 == cdep.call().balanceOf(owner_addr)
+            cdep.transact({'from': owner}).withdraw(owner))
+    assert 0 == cdep.call().balanceOf(owner)
     assert amnt == gntw.call().balanceOf(cdep.address)
 
 
