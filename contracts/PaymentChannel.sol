@@ -36,7 +36,7 @@ contract GNTPaymentChannels is ERC223ReceivingContract {
         close_delay = _close_delay;
     }
 
-    function tokenFallback(address _from, uint _value, bytes _data)
+    function onTokenReceived(address _from, uint _value, bytes _data)
         {
     }
 

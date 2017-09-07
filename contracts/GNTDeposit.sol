@@ -32,7 +32,7 @@ contract GNTDeposit is ERC223ReceivingContract {
         withdrawal_delay = _withdrawal_delay;
     }
 
-    function tokenFallback(address _from, uint _value, bytes _data) {
+    function onTokenReceived(address _from, uint _value, bytes _data) {
     }
 
     modifier onlyOracle() {

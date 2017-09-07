@@ -38,8 +38,8 @@ contract Token is ERC223, ERC20Extended, ERC20Basic {
             balances[_to] += _value;
             if(codeLength>0) {
                 ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
-                // tokenFallback does revert() if anything goes wrong
-                receiver.tokenFallback(msg.sender, _value, _data);
+                // onTokenReceived does revert() if anything goes wrong
+                receiver.onTokenReceived(msg.sender, _value, _data);
             }
             Transfer(msg.sender, _to, _value);
             return true;
@@ -67,7 +67,7 @@ contract Token is ERC223, ERC20Extended, ERC20Basic {
             if(codeLength>0) {
                 ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
                 bytes empty;
-                receiver.tokenFallback(msg.sender, _value, empty);
+                receiver.onTokenReceived(msg.sender, _value, empty);
             }
             Transfer(msg.sender, _to, _value);
             return true;
