@@ -1,4 +1,5 @@
 import pytest
+import ethereum.tester as tester
 import ethereum
 import ethereum.utils as utils
 from ethereum.tester import TransactionFailed
@@ -67,7 +68,9 @@ def test_close(chain):
 
 
 def test_withdraw(chain):
-    owner_addr, receiver_addr, gnt, gntw, cdep = mysetup(chain)
+    owner_addr, _, gnt, gntw, cdep = mysetup(chain)
+    owner_priv = ethereum.tester.keys[7]
+    receiver_addr = tester.accounts[1]
     pc = deploy_channels(chain, owner_addr, gntw)
     channel = prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc)
 
@@ -82,7 +85,6 @@ def test_withdraw(chain):
     c_cap = capacity()
     sh_cap = shared_capacity()
 
-    owner_priv = ethereum.tester.keys[9]
     V, ER, ES = sign_transfer(channel, owner_priv, receiver_addr, 10)
     # withdraw wrong amount
     with pytest.raises(TransactionFailed):

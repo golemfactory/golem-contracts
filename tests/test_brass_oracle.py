@@ -63,17 +63,18 @@ def deploy_oraclized_deposit(chain, factory_addr, token, delay):
 
 
 def mysetup(chain):
-    r_addr = tester.accounts[9]
-    oracle_addr = tester.accounts[8]
+    factory = tester.accounts[9]
+    oracle = tester.accounts[8]
+    user = tester.accounts[7]
     bn = chain.web3.eth.blockNumber
     start, finish = bn+2, bn+11
-    gnt = deploy_gnt(chain, r_addr, r_addr, start, finish)
-    gntw, gas = deploy_gntw(chain, r_addr, gnt)
+    gnt = deploy_gnt(chain, factory, factory, start, finish)
+    gntw, gas = deploy_gntw(chain, factory, gnt)
     print("GNTW deployment cost: {}".format(gas['gasUsed']))
     fund_gntw(chain, gnt, gntw)
-    cdep, gas = deploy_oraclized_deposit(chain, oracle_addr, gntw, lock_time())
+    cdep, gas = deploy_oraclized_deposit(chain, oracle, gntw, lock_time())
     print("GNTDeposit deployment cost: {}".format(gas['gasUsed']))
-    return r_addr, oracle_addr, gnt, gntw, cdep
+    return user, oracle, gnt, gntw, cdep
 
 
 def do_deposit_20(chain, gnt, gntw, cdep, owner, deposit_size):
