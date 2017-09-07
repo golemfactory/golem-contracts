@@ -64,7 +64,14 @@ contract GNTDeposit is ERC223ReceivingContract {
         _;
     }
 
-    function onTokenReceived(address _from, uint _value, bytes _data) {
+    modifier onlyToken() {
+        require(msg.sender == address(token));
+        _;
+    }
+
+    function onTokenReceived(address _from, uint _value, bytes _data)
+        onlyToken
+    {
         _do_deposit(_from, _value);
     }
 
@@ -102,7 +109,7 @@ contract GNTDeposit is ERC223ReceivingContract {
         external
     {
         var _amount = balances[msg.sender];
-        if (!token.transfer(_to, balances[msg.sender])) {
+        if (!token.transfer(_to, _amount)) {
             revert();
         }
         delete balances[msg.sender];
