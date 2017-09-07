@@ -76,7 +76,9 @@ def mysetup(chain):
     return r_addr, oracle_addr, gnt, gntw, cdep
 
 
-def do_deposit(chain, gnt, gntw, cdep, owner, deposit_size):
+def do_deposit_20(chain, gnt, gntw, cdep, owner, deposit_size):
+    initial_total_deposit = gntw.call().balanceOf(cdep.address)
+    initial_dep_size = cdep.call().balanceOf(owner)
     chain.wait.for_receipt(
         gntw.transact({'from': owner}).approve(cdep.address, deposit_size))
     assert deposit_size == gntw.call().allowance(owner, cdep.address)
@@ -85,8 +87,18 @@ def do_deposit(chain, gnt, gntw, cdep, owner, deposit_size):
         cdep.transact({'from': owner}).deposit(deposit_size))
     assert deposit_size != gntw.call().allowance(owner, cdep.address)
     total_deposit = gntw.call().balanceOf(cdep.address)
-    assert total_deposit == deposit_size
-    assert deposit_size == cdep.call().balanceOf(owner)
+    assert total_deposit == deposit_size + initial_total_deposit
+    assert deposit_size == cdep.call().balanceOf(owner) + initial_dep_size
+
+
+def do_deposit_223(chain, gnt, gntw, cdep, owner, deposit_size):
+    initial_total_deposit = gntw.call().balanceOf(cdep.address)
+    initial_dep_size = cdep.call().balanceOf(owner)
+    chain.wait.for_receipt(
+        gntw.transact({'from': owner}).transfer(cdep.address, deposit_size))
+    total_deposit = gntw.call().balanceOf(cdep.address)
+    assert total_deposit == deposit_size + initial_total_deposit
+    assert deposit_size == cdep.call().balanceOf(owner) - initial_dep_size
 
 
 def test_windrawGNT(chain):
@@ -105,7 +117,8 @@ def test_timelocks(chain):
     attacker_addr = tester.accounts[1]
     owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
     deposit_size = 100000
-    do_deposit(chain, gnt, gntw, cdep, owner_addr, deposit_size)
+    do_deposit_20(chain, gnt, gntw, cdep, owner_addr, int(deposit_size / 2))
+    do_deposit_223(chain, gnt, gntw, cdep, owner_addr, int(deposit_size / 2))
     amnt = gntw.call().balanceOf(cdep.address)
     chain.wait.for_receipt(
         cdep.transact({'from': owner_addr}).unlock())
@@ -140,41 +153,43 @@ def test_timelocks(chain):
 def test_burn(chain):
     owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
     deposit_size = 100000
-    burn_size = int(deposit_size / 2)
-    do_deposit(chain, gnt, gntw, cdep, owner_addr, deposit_size)
+    half_dep = int(deposit_size / 2)
+    do_deposit_20(chain, gnt, gntw, cdep, owner_addr, half_dep)
+    do_deposit_223(chain, gnt, gntw, cdep, owner_addr, half_dep)
     amnt = gntw.call().balanceOf(cdep.address)
     # not oracle
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            cdep.transact({'from': owner_addr}).burn(owner_addr, burn_size))
+            cdep.transact({'from': owner_addr}).burn(owner_addr, half_dep))
     assert amnt == gntw.call().balanceOf(cdep.address)
     # oracle
     chain.wait.for_receipt(
-        cdep.transact({'from': oracle_addr}).burn(owner_addr, burn_size))
-    assert amnt-burn_size == cdep.call().balanceOf(owner_addr)
-    assert amnt-burn_size == gntw.call().balanceOf(cdep.address)
+        cdep.transact({'from': oracle_addr}).burn(owner_addr, half_dep))
+    assert amnt-half_dep == cdep.call().balanceOf(owner_addr)
+    assert amnt-half_dep == gntw.call().balanceOf(cdep.address)
 
 
 def test_reimburse(chain):
     owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
     other_addr = tester.accounts[1]
     deposit_size = 100000
-    reimb_size = int(deposit_size / 2)
-    do_deposit(chain, gnt, gntw, cdep, owner_addr, deposit_size)
+    half_dep = int(deposit_size / 2)
+    do_deposit_20(chain, gnt, gntw, cdep, owner_addr, half_dep)
+    do_deposit_223(chain, gnt, gntw, cdep, owner_addr, half_dep)
     amnt = gntw.call().balanceOf(cdep.address)
     # not oracle
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             cdep.transact({'from': other_addr}).reimburse(owner_addr,
                                                           other_addr,
-                                                          reimb_size))
+                                                          half_dep))
     assert amnt == gntw.call().balanceOf(cdep.address)
     # oracle
     chain.wait.for_receipt(
         cdep.transact({'from': oracle_addr}).reimburse(owner_addr, other_addr,
-                                                       reimb_size))
-    assert amnt-reimb_size == cdep.call().balanceOf(owner_addr)
-    assert amnt-reimb_size == gntw.call().balanceOf(cdep.address)
+                                                       half_dep))
+    assert amnt-half_dep == cdep.call().balanceOf(owner_addr)
+    assert amnt-half_dep == gntw.call().balanceOf(cdep.address)
 
 
 def blockTimestamp(chain):
@@ -184,7 +199,7 @@ def blockTimestamp(chain):
 
 
 def lock_time():
-    return seconds(30)
+    return seconds(60)
 
 
 def weeks(n):

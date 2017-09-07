@@ -32,9 +32,6 @@ contract GNTDeposit is ERC223ReceivingContract {
         withdrawal_delay = _withdrawal_delay;
     }
 
-    function onTokenReceived(address _from, uint _value, bytes _data) {
-    }
-
     modifier onlyOracle() {
         require(msg.sender == oracle);
         _;
@@ -67,15 +64,28 @@ contract GNTDeposit is ERC223ReceivingContract {
         _;
     }
 
+    function onTokenReceived(address _from, uint _value, bytes _data) {
+        _do_deposit(_from, _value);
+    }
+
     function deposit(uint256 _amount)
-        external returns (bool) {
+        external
+        returns (bool)
+    {
         if (token.transferFrom(msg.sender, address(this), _amount)) {
-            balances[msg.sender] += _amount;
-            locked_until[msg.sender] = 0;
-            Deposit(msg.sender, _amount); // event
-            return true;
+            return _do_deposit(msg.sender, _amount);
         }
         return false;
+    }
+
+    function _do_deposit(address _beneficiary, uint _amount)
+        internal
+        returns (bool)
+    {
+        balances[_beneficiary] += _amount;
+        locked_until[_beneficiary] = 0;
+        Deposit(_beneficiary, _amount); // event
+        return true;
     }
 
     function unlock() external {
