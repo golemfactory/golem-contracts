@@ -47,9 +47,14 @@ contract GNTPaymentChannels is ERC223ReceivingContract {
         NewChannel(msg.sender, _receiver, channel); // event
     }
 
-    modifier validSig(bytes32 _ch, uint _value,
+    function isValidSig(bytes32 _ch, uint _value,
+                        uint8 _v, bytes32 _r, bytes32 _s) view returns (bool) {
+        return (channels[_ch].owner) == (ecrecover(sha3(_ch, _value), _v, _r, _s));
+    }
+
+    modifier onlyValidSig(bytes32 _ch, uint _value,
                       uint8 _v, bytes32 _r, bytes32 _s) {
-        require((channels[_ch].owner) == ecrecover(sha3(_ch, _value), _v, _r, _s));
+        require(isValidSig(_ch, _value, _v, _r, _s));
         _;
     }
 
@@ -128,7 +133,7 @@ contract GNTPaymentChannels is ERC223ReceivingContract {
     function withdraw(bytes32 _channel, uint256 _value,
                       uint8 _v, bytes32 _r, bytes32 _s)
         external
-        validSig(_channel, _value, _v, _r, _s)
+        onlyValidSig(_channel, _value, _v, _r, _s)
         returns (bool) {
         PaymentChannel ch = channels[_channel];
         require(ch.withdrawn < _value); // <- STRICT less than!
