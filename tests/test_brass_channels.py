@@ -72,7 +72,9 @@ def test_withdraw(chain):
     channel = prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc)
 
     def capacity():
-        return pc.call().getDeposited(channel) - pc.call().getWithdrawn(channel)
+        dep = pc.call().getDeposited(channel)
+        wit = pc.call().getWithdrawn(channel)
+        return dep - wit
 
     def shared_capacity():
         return gntw.call().balanceOf(pc.address)
@@ -182,12 +184,10 @@ def prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc):
     topics = [owner_addr, receiver_addr]
     f_id = log_filter(chain, pc.address,
                       "NewChannel(address, address, bytes32)", topics)
-    tx = chain.wait.for_receipt(
+    chain.wait.for_receipt(
         pc.transact({'from': owner_addr}).createChannel(receiver_addr))
-    print("tx: {}".format(tx))
     logs = get_logs(f_id)
     channel = logs[0]["data"]
-    print("channel: {}".format(channel))
     channel = eth_utils.decode_hex(channel[2:])
 
     thevalue = pc.call().getDeposited(channel)
@@ -207,10 +207,9 @@ def prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc):
     topics = [receiver_addr, channel]
     f_id = log_filter(chain, pc.address,
                       "Fund(address, bytes32, uint256)", topics)
-    tx = chain.wait.for_receipt(
+    chain.wait.for_receipt(
         pc.transact({'from': owner_addr}).fund(channel, receiver_addr,
                                                deposit_size))
-    print("tx: {}".format(tx))
     logs = get_logs(f_id)
     log_amount = int.from_bytes(eth_utils.decode_hex(logs[0]["data"]),
                                 byteorder='big')
@@ -229,10 +228,7 @@ def log_filter(chain, address, signature, topics):
     # "LogAnonymous()"
     # "NewChannel(address, address, bytes32)"
     enc_sig = eth_utils.encode_hex(event_signature_to_log_topic(signature))
-    # enc_sig2 = rlp.utils.encode_hex(event_signature_to_log_topic(signature))
-    # assert enc_sig == enc_sig2
     topics.insert(0, enc_sig)
-    print("{} -> {}".format(signature, topics))
     obj = {
         'fromBlock': bn,
         'toBlock': "latest",
@@ -245,14 +241,11 @@ def log_filter(chain, address, signature, topics):
 def get_logs(f_id):
     chain, id, enc_sig = f_id
     logs = chain.web3.eth.getFilterLogs(id)
-    print("logs: {}".format(logs))
 
     def l(x):
-        print("topic: {}; enc_sig: {}".format(x["topics"][0], enc_sig))
         return (x["topics"][0]) == enc_sig
 
     lf = list(filter(l, logs))
-    print("lf: {}".format(lf))
     return lf
 
 
