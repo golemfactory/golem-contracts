@@ -89,7 +89,8 @@ def do_deposit_20(chain, gnt, gntw, cdep, owner, deposit_size):
     assert deposit_size != gntw.call().allowance(owner, cdep.address)
     total_deposit = gntw.call().balanceOf(cdep.address)
     assert total_deposit == deposit_size + initial_total_deposit
-    assert deposit_size == cdep.call().balanceOf(owner) + initial_dep_size
+    assert deposit_size == cdep.call().balanceOf(owner) - initial_dep_size
+    assert cdep.call().isLocked(owner)
 
 
 def do_deposit_223(chain, gnt, gntw, cdep, owner, deposit_size):
