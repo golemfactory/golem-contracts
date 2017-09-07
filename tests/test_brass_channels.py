@@ -86,6 +86,7 @@ def test_withdraw(chain):
     sh_cap = shared_capacity()
 
     V, ER, ES = sign_transfer(channel, owner_priv, receiver_addr, 10)
+    assert pc.call().isValidSig(channel, 10, V, ER, ES)
     # withdraw wrong amount
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
@@ -106,9 +107,12 @@ def test_withdraw(chain):
             pc.transact({"from": receiver_addr}).withdraw(channel, 10,
                                                           V, ER, ES1))
     # successful withdrawal
+    assert 10 <= shared_capacity()
+    assert 10 <= capacity()
+    assert not gntw.call().isContract(receiver_addr)
+    assert pc.call().isValidSig(channel, 10, V, ER, ES)
     chain.wait.for_receipt(
-        pc.transact({"from": receiver_addr}).withdraw(channel, 10,
-                                                      V, ER, ES))
+        pc.transact({"from": receiver_addr}).withdraw(channel, 10, V, ER, ES))
     assert capacity() == c_cap - 10
     assert shared_capacity() == sh_cap - 10
 
