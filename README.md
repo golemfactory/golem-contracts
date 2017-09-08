@@ -1,7 +1,8 @@
 # PoC contents
 * *GNT* token  
-* *GNTW* for missing parts of ERC-20 interface  
+* *GNTW* for missing parts of ERC20 interface and ERC223 implementation  
 * *GNTDeposit* that implements timelocked deposits and deposit burning
+* *GNTPaymentChannels* for small payments to Consent
 
 All with basic smoke tests.
 

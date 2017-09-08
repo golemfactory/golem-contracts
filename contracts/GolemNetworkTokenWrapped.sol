@@ -41,7 +41,7 @@ contract Token is ERC223, ERC20Extended, ERC20Basic {
                 // onTokenReceived does revert() if anything goes wrong
                 receiver.onTokenReceived(msg.sender, _value, _data);
             }
-            // FIXME: when ERC-223 will stabilize a bit, revisit this:
+            // FIXME: when ERC223 will stabilize a bit, revisit this:
             Transfer(msg.sender, _to, _value);
             Transfer(msg.sender, _to, _value, _data);
             return true;

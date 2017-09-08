@@ -114,7 +114,7 @@ contract GNTPaymentChannels is ERC223ReceivingContract {
     }
 
     // Fund existing channel; can be done multiple times.
-    // ERC-223 receiver interface
+    // ERC223 receiver interface
     function onTokenReceived(address _from, uint _value, bytes _data)
         onlyToken
     {
@@ -130,7 +130,7 @@ contract GNTPaymentChannels is ERC223ReceivingContract {
 
 
     // Fund existing channel; can be done multiple times.
-    // Uses ERC-20 token API
+    // Uses ERC20 token API
     function fund(bytes32 _channel, uint256 _amount)
         returns (bool) {
         PaymentChannel ch = channels[_channel];
