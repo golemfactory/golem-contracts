@@ -113,13 +113,12 @@ contract GNTPaymentChannels is ERC223ReceivingContract {
     }
 
     // Fund existing channel; can be done multiple times.
-    function fund(bytes32 _channel, address _receiver, uint256 _amount)
-        external
+    function fund(bytes32 _channel, uint256 _amount)
         returns (bool) {
         PaymentChannel ch = channels[_channel];
         // check if channel exists
         // this prevents fund loss
-        require(ch.receiver == _receiver);
+        require(ch.owner != address(0));
         if (token.transferFrom(msg.sender, address(this), _amount)) {
             ch.deposited += _amount;
             ch.locked_until = 0;

@@ -57,7 +57,7 @@ def test_close(chain):
     # can't fund closed channel
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({'from': owner_addr}).fund(channel, receiver_addr, 1))
+            pc.transact({'from': owner_addr}).fund(channel, 1))
     # can't withdraw from closed channel
     owner_priv = ethereum.tester.keys[9]
     V, ER, ES = sign_transfer(channel, owner_priv, receiver_addr, 10)
@@ -161,7 +161,7 @@ def test_forceClose(chain):
     # can't fund closed channel
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({'from': owner_addr}).fund(channel, receiver_addr, 100))
+            pc.transact({'from': owner_addr}).fund(channel, 100))
     # can't withdraw from closed channel
     owner_priv = ethereum.tester.keys[9]
     V, ER, ES = sign_transfer(channel, owner_priv, receiver_addr, 10)
@@ -214,8 +214,7 @@ def prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc):
     f_id = log_filter(chain, pc.address,
                       "Fund(address, bytes32, uint256)", topics)
     chain.wait.for_receipt(
-        pc.transact({'from': owner_addr}).fund(channel, receiver_addr,
-                                               deposit_size))
+        pc.transact({'from': owner_addr}).fund(channel, deposit_size))
     logs = get_logs(f_id)
     log_amount = int.from_bytes(eth_utils.decode_hex(logs[0]["data"]),
                                 byteorder='big')
