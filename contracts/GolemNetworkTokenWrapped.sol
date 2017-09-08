@@ -49,15 +49,6 @@ contract Token is ERC223, ERC20Extended, ERC20Basic {
         return false;
     }
 
-    function isContract(address target) returns(bool) {
-        uint codeLength;
-        assembly {
-            // Retrieve the size of the code on target address, this needs assembly .
-            codeLength := extcodesize(target)
-        }
-        return codeLength > 0;
-    }
-
     // Standard function transfer similar to ERC20 transfer with no _data .
     // Added due to backwards compatibility reasons .
     function _transfer(address _to, uint _value)

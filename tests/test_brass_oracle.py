@@ -150,7 +150,6 @@ def test_timelocks(chain):
         chain.web3.testing.mine(1)
     assert cdep.call().isUnlocked(owner)
     assert owner != gntw.address
-    assert not gntw.call().isContract(owner)
     assert gntw.call().balanceOf(cdep.address) >= cdep.call().balanceOf(owner)
     chain.wait.for_receipt(
         cdep.transact({'from': owner}).withdraw(owner))

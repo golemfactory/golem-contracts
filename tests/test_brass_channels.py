@@ -109,7 +109,6 @@ def test_withdraw(chain):
     # successful withdrawal
     assert 10 <= shared_capacity()
     assert 10 <= capacity()
-    assert not gntw.call().isContract(receiver_addr)
     assert pc.call().isValidSig(channel, 10, V, ER, ES)
     chain.wait.for_receipt(
         pc.transact({"from": receiver_addr}).withdraw(channel, 10, V, ER, ES))
