@@ -136,7 +136,7 @@ contract GNTPaymentChannels is ERC223ReceivingContract {
         PaymentChannel ch = channels[_channel];
         // check if channel exists
         // this prevents fund loss
-        require(ch.owner != address(0));
+        require(ch.receiver != address(0));
         if (token.transferFrom(msg.sender, address(this), _amount)) {
             ch.deposited += _amount;
             ch.locked_until = 0;
