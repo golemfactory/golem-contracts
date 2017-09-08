@@ -54,27 +54,8 @@ contract Token is ERC223, ERC20Extended, ERC20Basic {
     function _transfer(address _to, uint _value)
         returns (bool success)
     {
-        uint codeLength;
-
-        assembly {
-            // Retrieve the size of the code on target address, this needs assembly .
-            codeLength := extcodesize(_to)
-        }
-
-        var senderBalance = balances[msg.sender];
-        if (senderBalance >= _value && _value > 0) {
-            senderBalance -= _value;
-            balances[msg.sender] = senderBalance;
-            balances[_to] += _value;
-            if(codeLength>0) {
-                ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
-                bytes empty;
-                receiver.onTokenReceived(msg.sender, _value, empty);
-            }
-            Transfer(msg.sender, _to, _value);
-            return true;
-        }
-        return false;
+        bytes empty;
+        return _transfer(_to, _value, empty);
     }
 
     function _transferFrom(address _from,
