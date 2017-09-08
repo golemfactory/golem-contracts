@@ -206,21 +206,26 @@ def prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc):
     assert theowner == eth_utils.encode_hex(owner_addr)
 
     assert 0 == pc.call().getDeposited(channel)
-    deposit_size = 1234567
+    deposit_size = 100000
+    half_dep = int(deposit_size / 2)
     chain.wait.for_receipt(
         gntw.transact({'from': owner_addr}).approve(pc.address,
-                                                    deposit_size*2))
+                                                    half_dep * 2))
     topics = [receiver_addr, channel]
     f_id = log_filter(chain, pc.address,
                       "Fund(address, bytes32, uint256)", topics)
     chain.wait.for_receipt(
-        pc.transact({'from': owner_addr}).fund(channel, deposit_size))
+        pc.transact({'from': owner_addr}).fund(channel, half_dep))
     logs = get_logs(f_id)
     log_amount = int.from_bytes(eth_utils.decode_hex(logs[0]["data"]),
                                 byteorder='big')
-    assert log_amount == deposit_size
-    assert deposit_size == pc.call().getDeposited(channel)
+    assert log_amount == half_dep
+    assert half_dep == pc.call().getDeposited(channel)
     assert eth_utils.encode_hex(owner_addr) == pc.call().getOwner(channel)
+    chain.wait.for_receipt(
+        gntw.transact({'from': owner_addr}).transfer(pc.address,
+                                                     half_dep, channel))
+    assert half_dep * 2 == pc.call().getDeposited(channel)
     return channel
 
 

@@ -36,10 +36,6 @@ contract GNTPaymentChannels is ERC223ReceivingContract {
         close_delay = _close_delay;
     }
 
-    function onTokenReceived(address _from, uint _value, bytes _data)
-        {
-    }
-
     function createChannel(address _receiver)
         external {
         bytes32 channel = sha3(id++);
@@ -112,7 +108,29 @@ contract GNTPaymentChannels is ERC223ReceivingContract {
                 (channels[_channel].locked_until < block.timestamp));
     }
 
+    modifier onlyToken() {
+        require(msg.sender == address(token));
+        _;
+    }
+
     // Fund existing channel; can be done multiple times.
+    // ERC-223 receiver interface
+    function onTokenReceived(address _from, uint _value, bytes _data)
+        onlyToken
+    {
+        bytes32 channel;
+        assembly {
+            channel := mload(add(_data, 32))
+        }
+        PaymentChannel ch = channels[channel];
+        require(_from == ch.owner);
+        ch.deposited += _value;
+        Fund(ch.receiver, channel, _value); // event
+    }
+
+
+    // Fund existing channel; can be done multiple times.
+    // Uses ERC-20 token API
     function fund(bytes32 _channel, uint256 _amount)
         returns (bool) {
         PaymentChannel ch = channels[_channel];
