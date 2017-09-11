@@ -14,7 +14,7 @@ contract GNTDeposit is ERC223ReceivingContract {
     //        | 0 if locked
     mapping (address =>  uint256) public locked_until;
 
-    event Deposit(address indexed _from, uint256 _amount);
+    event Deposit(address indexed _owner, uint256 _amount);
     event Withdraw(address indexed _from, address indexed _to, uint256 _amount);
     event Lock(address indexed _owner);
     event Unlock(address indexed _owner);
@@ -168,12 +168,12 @@ contract GNTDeposit is ERC223ReceivingContract {
 
     // internals
 
-    function _do_deposit(address _beneficiary, uint _amount)
+    function _do_deposit(address _owner, uint _amount)
         private
         returns (bool)
     {
-        balances[_beneficiary] += _amount;
-        Deposit(_beneficiary, _amount); // event
+        balances[_owner] += _amount;
+        Deposit(_owner, _amount); // event
         return true;
     }
 
