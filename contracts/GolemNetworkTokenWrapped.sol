@@ -12,8 +12,9 @@ import "./ERC20/ERC20Extended.sol";
 // // adapted from code provided by u/JonnyLatte
 
 
-// ERC223 is used because it is easier to handle than ERC20
+// ERC223 is used because it is easier to handle than ERC20.
 // ERC20 is used because of lack of support of ERC223 from Raiden
+// and because ERC223 is in flux
 contract Token is ERC223, ERC20Extended, ERC20Basic {
 
     function balanceOf(address _owner) view returns (uint256 balance) {
@@ -50,7 +51,7 @@ contract Token is ERC223, ERC20Extended, ERC20Basic {
     }
 
     // Standard function transfer similar to ERC20 transfer with no _data .
-    // Added due to backwards compatibility reasons .
+    // Added due to backwards compatibility reasons.
     function transfer(address _to, uint _value)
         returns (bool success)
     {
