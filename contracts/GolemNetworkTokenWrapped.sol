@@ -21,7 +21,7 @@ contract Token is ERC223, ERC20Extended, ERC20Basic {
     }
 
     // Function that is called when a user or another contract wants to transfer funds.
-    function _transfer(address _to, uint _value, bytes _data)
+    function transfer(address _to, uint _value, bytes _data)
         returns (bool success)
     {
         uint codeLength;
@@ -51,11 +51,11 @@ contract Token is ERC223, ERC20Extended, ERC20Basic {
 
     // Standard function transfer similar to ERC20 transfer with no _data .
     // Added due to backwards compatibility reasons .
-    function _transfer(address _to, uint _value)
+    function transfer(address _to, uint _value)
         returns (bool success)
     {
         bytes empty;
-        return _transfer(_to, _value, empty);
+        return transfer(_to, _value, empty);
     }
 
     function _transferFrom(address _from,
@@ -159,7 +159,8 @@ contract GolemNetworkTokenWrapped is Token {
             withdrawGNT(_amount);   // convert back to GNT
             return true;
         } else {
-            return _transfer(_to, _amount);     // standard transfer
+            bytes empty;
+            return Token.transfer(_to, _amount, empty);     // standard transfer
         }
     }
 
@@ -170,7 +171,7 @@ contract GolemNetworkTokenWrapped is Token {
             withdrawGNT(_amount);   // convert back to GNT
             return true;
         } else {
-            return _transfer(_to, _amount, _data);  // standard transfer
+            return Token.transfer(_to, _amount, _data);  // standard transfer
         }
     }
 
@@ -178,7 +179,7 @@ contract GolemNetworkTokenWrapped is Token {
                           address _to,
                           uint256 _amount) returns (bool success) {
         if (_to == address(this)) revert();        // not supported
-        return _transferFrom(_from, _to, _amount);
+        return Token.transferFrom(_from, _to, _amount);
     }
 
 
