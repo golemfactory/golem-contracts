@@ -36,16 +36,9 @@ contract GNTPaymentChannels is ERC223ReceivingContract {
         close_delay = _close_delay;
     }
 
-    function createChannel(address _receiver)
-        external {
-        bytes32 channel = sha3(id++);
-        channels[channel] = PaymentChannel(msg.sender, _receiver, 0, 0, 0);
-        NewChannel(msg.sender, _receiver, channel); // event
-    }
-
-    function isValidSig(bytes32 _ch, uint _value,
-                        uint8 _v, bytes32 _r, bytes32 _s) view returns (bool) {
-        return (channels[_ch].owner) == (ecrecover(sha3(_ch, _value), _v, _r, _s));
+    modifier onlyToken() {
+        require(msg.sender == address(token));
+        _;
     }
 
     modifier onlyValidSig(bytes32 _ch, uint _value,
@@ -108,14 +101,24 @@ contract GNTPaymentChannels is ERC223ReceivingContract {
                 (channels[_channel].locked_until < block.timestamp));
     }
 
-    modifier onlyToken() {
-        require(msg.sender == address(token));
-        _;
+    function isValidSig(bytes32 _ch, uint _value,
+                        uint8 _v, bytes32 _r, bytes32 _s) view returns (bool) {
+        return (channels[_ch].owner) == (ecrecover(sha3(_ch, _value), _v, _r, _s));
+    }
+
+    // functions that modify state
+
+    // FIXME: Channel needs to be created before it can be funded.
+    function createChannel(address _receiver)
+        external {
+        bytes32 channel = sha3(id++);
+        channels[channel] = PaymentChannel(msg.sender, _receiver, 0, 0, 0);
+        NewChannel(msg.sender, _receiver, channel); // event
     }
 
     // Fund existing channel; can be done multiple times.
     // ERC223 receiver interface
-    function onTokenReceived(address _from, uint _value, bytes _data)
+    function onTokenTransfer(address _from, uint _value, bytes _data)
         onlyToken
     {
         bytes32 channel;
@@ -128,6 +131,15 @@ contract GNTPaymentChannels is ERC223ReceivingContract {
         Fund(ch.receiver, channel, _value); // event
     }
 
+    // alias
+    function onTokenReceived(address _from, uint _value, bytes _data) {
+        onTokenTransfer(_from, _value, _data);
+    }
+
+    // alias
+    function tokenFallback(address _from, uint _value, bytes _data) {
+        onTokenTransfer(_from, _value, _data);
+    }
 
     // Fund existing channel; can be done multiple times.
     // Uses ERC20 token API
@@ -161,18 +173,6 @@ contract GNTPaymentChannels is ERC223ReceivingContract {
         return _do_withdraw(_channel, amount);
     }
 
-    function _do_withdraw(bytes32 _channel, uint256 _amount)
-        private
-        returns (bool) {
-        PaymentChannel ch = channels[_channel];
-        if (token.transfer(ch.receiver, _amount)) {
-            ch.withdrawn += _amount;
-            Withdraw(ch.owner, ch.receiver);
-            return true;
-        }
-        return false;
-    }
-
     // If receiver does not want to close channel, owner can do that
     // by calling unlock and waiting for grace period (close_delay).
     function unlock(bytes32 _channel)
@@ -201,7 +201,25 @@ contract GNTPaymentChannels is ERC223ReceivingContract {
         return _do_close(_channel, true);
     }
 
-    function _do_close(bytes32 _channel, bool force) private returns (bool) {
+    // internals
+
+    function _do_withdraw(bytes32 _channel, uint256 _amount)
+        private
+        returns (bool) {
+
+        PaymentChannel ch = channels[_channel];
+        if (token.transfer(ch.receiver, _amount)) {
+            ch.withdrawn += _amount;
+            Withdraw(ch.owner, ch.receiver);
+            return true;
+        }
+        return false;
+    }
+
+    function _do_close(bytes32 _channel, bool force)
+        private
+        returns (bool) {
+
         PaymentChannel ch = channels[_channel];
         var amount = ch.deposited - ch.withdrawn;
         if (token.transfer(ch.owner, amount)) {
