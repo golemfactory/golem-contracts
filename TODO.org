@@ -6,7 +6,8 @@
 ** TODO limit oracle's power to amounts declared by parties
 ** TODO consider createChannel to be dependent on arguments
   and not on hidden variable id; one channel per (owner, receiver) pair
-** TODO rework GNTW to be ERC223 compliant
+** DONE rework GNTW to be ERC223 compliant
+   CLOSED: [2017-09-11 pon 13:17]
    and merge channel creation with channel funding in single transaction
 ** DONE reconsider names of some of events
    CLOSED: [2017-09-01 pią 12:16]
