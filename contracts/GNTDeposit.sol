@@ -166,8 +166,10 @@ contract GNTDeposit is ERC223ReceivingContract {
         return false;
     }
 
+    // internals
+
     function _do_deposit(address _beneficiary, uint _amount)
-        internal
+        private
         returns (bool)
     {
         balances[_beneficiary] += _amount;
