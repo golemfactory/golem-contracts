@@ -1,2 +1,2 @@
-populus
+populus==1.9.1
 pytest
