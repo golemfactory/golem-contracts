@@ -11,3 +11,6 @@ channels: compile
 
 oracle: compile
 	pytest tests/test_brass_oracle.py
+
+batch: compile
+	pytest tests/test_brass_batch.py
