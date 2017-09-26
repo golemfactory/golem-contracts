@@ -15,3 +15,6 @@ All with basic smoke tests.
 `$ pip install -r requirements.txt`  
 `$ populus compile`  
 `$ pytest`  
+
+# Deployment
+`$ python3 utils/deploy.py`
