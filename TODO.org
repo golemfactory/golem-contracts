@@ -13,6 +13,9 @@
    CLOSED: [2017-09-01 pią 12:16]
 ** TODO golem node id registration in the deposit
 
+** TODO create a script that deploys contracts on Rinkeby
+** TODO create and deploy a faucet contract
+*** TODO should it do the crowdfunding?
 * on deposits security
 ** timeout nie jest konieczny bo oracle nie widzi wszystkich spraw
 *** counter-argument: other guys can attempt to reuse those to replay
