@@ -15,10 +15,10 @@ def deploy_or_get_gnt(chain_name, chain, owner):
         # return chain.web3.eth.getCode(addr)
     if chain_name == "rinkeby":
         Token = chain.provider.get_contract_factory('GolemNetworkToken')
-        token_address = "0x144B536A3314ff95D89e0939Cd2D1ae4e710933E"
+        token_address = "0x34cB7577690e01A1C53597730e2e1112f72DBeB5"
         tgnt = Token(address=token_address)
         assert "tGNT" == tgnt.call().symbol()
-        print("tGNT already deployed")
+        print("tGNT already deployed!: {}".format(token_address))
         return tgnt
     bn = chain.web3.eth.blockNumber
     start, finish = bn+20, bn+10000
@@ -27,11 +27,11 @@ def deploy_or_get_gnt(chain_name, chain, owner):
     return gnt
 
 
-def deploy_tgnt(chain, factory_addr, migration_addr, start, finish):
-    args = [factory_addr, migration_addr, start, finish]
+def deploy_tgnt(chain, owner, migration_addr, start, finish):
+    args = [owner, migration_addr, start, finish]
     print("GolemNetworkToken deployment args: {}".format(args))
     Token = chain.provider.get_contract_factory('GolemNetworkToken')
-    txhash = Token.deploy(transaction={'from': factory_addr}, args=args)
+    txhash = Token.deploy(transaction={'from': owner}, args=args)
     receipt = check_succesful_tx(chain.web3, txhash, timeout=300)
     token_address = receipt['contractAddress']
     tgnt = Token(address=token_address)
@@ -39,7 +39,7 @@ def deploy_tgnt(chain, factory_addr, migration_addr, start, finish):
     return tgnt
 
 
-def rinkeby_fund_and_finalize(chain, tgnt, factory_addr):
+def rinkeby_fund_and_finalize(chain, tgnt, owner):
     current = tgnt.call().totalTokens()
     tcr = tgnt.call().tokenCreationRate()
     target = tgnt.call().tokenCreationCap()
@@ -50,9 +50,9 @@ def rinkeby_fund_and_finalize(chain, tgnt, factory_addr):
         print("Funding not yet done: {}".format(v))
         assert tgnt.call().funding()
         assert tgnt.call().tokenCreationRate() == 10000000000
-        assert v < chain.web3.eth.getBalance(factory_addr)
+        assert v < chain.web3.eth.getBalance(owner)
         chain.wait.for_receipt(
-            tgnt.transact({'value': v, 'from': factory_addr}).create())
+            tgnt.transact({'value': v, 'from': owner}).create())
     else:
         print("tGNT already funded")
     if(tgnt.call().funding()):
@@ -66,11 +66,11 @@ def rinkeby_fund_and_finalize(chain, tgnt, factory_addr):
 def deploy_gntw(chain_name, chain, gnt, owner):
     GNTW = chain.provider.get_contract_factory('GolemNetworkTokenWrapped')
     if chain_name == "rinkeby":
-        gntw_address = "0xF3140A97820fB0f9670eF32875E6E6a75F6e16e4"
+        gntw_address = "0x584d53B8C2D0d0d7e27815D8482df8c96a8CD32D"
         gntw = GNTW(address=gntw_address)
         assert "GNTW" == gntw.call().symbol()
         assert gnt.address == gntw.call().GNT()
-        print("GNTW already deployed")
+        print("GNTW already deployed!: {}".format(gntw_address))
         return gntw
     args = [gnt.address]
     print("GNTW deployment args: {}".format(args))
@@ -97,41 +97,90 @@ def fund_gntw(chain, addr, gnt, gntw):
     assert v == gntw.call().balanceOf(addr)
 
 
-def oraclized_deposit(chain_name, chain, factory_addr, consent, coldwallet, token, delay):
-    cdep = deploy_oraclized_deposit(chain_name, chain, factory_addr, consent,
-                                    coldwallet, token, delay)
-    check_oraclized_deposit(cdep, token, consent, coldwallet, delay)
+def oraclized_deposit(chain_name, chain, owner, consent, coldwallet, gntw, delay):
+    cdep = deploy_oraclized_deposit(chain_name, chain, owner, consent,
+                                    coldwallet, gntw, delay)
+    check_oraclized_deposit(cdep, gntw, consent, coldwallet, delay)
     return cdep
 
 
 def check_oraclized_deposit(cdep, gntw, consent, coldwallet, delay):
-    assert gntw.address == cdep.call().token()
-    assert consent == cdep.call().oracle()
-    assert coldwallet == cdep.call().coldwallet()
+    assert gntw.address.lower() == cdep.call().token()
+    assert consent.lower() == cdep.call().oracle()
+    assert coldwallet.lower() == cdep.call().coldwallet()
     assert delay == cdep.call().withdrawal_delay()
 
 
-def deploy_oraclized_deposit(chain_name, chain, factory_addr, consent, coldwallet, token, delay):
+def deploy_oraclized_deposit(chain_name, chain, owner, consent, coldwallet, gntw, delay):
     CDEP = chain.provider.get_contract_factory('GNTDeposit')
     if (chain_name == "rinkeby"):
-        cdep_address = "0x44700ACFDf6EE9BC69698E3E818876cC7c05C4A1"
+        cdep_address = "0x7047c04EB5337bf4fD7033B24d411D50b57feb5C"
         cdep = CDEP(address=cdep_address)
-        print("GNTDeposit already deployed!")
+        print("GNTDeposit already deployed!: {}".format(cdep_address))
         return cdep
-    args = [token.address, consent, coldwallet, delay]
+    args = [gntw.address, consent, coldwallet, delay]
     print("deploying GNTDeposit: {}".format(args))
-    txhash = CDEP.deploy(transaction={'from': factory_addr}, args=args)
+    txhash = CDEP.deploy(transaction={'from': owner}, args=args)
     receipt = check_succesful_tx(chain.web3, txhash, timeout=300)
-    token_address = receipt['contractAddress']
-    cdep = CDEP(address=token_address)
+    cdep_address = receipt['contractAddress']
+    cdep = CDEP(address=cdep_address)
     return cdep
 
 
+def channels(chain_name, chain, gntw, owner):
+    CHAN = chain.provider.get_contract_factory('GNTPaymentChannels')
+    args = [gntw.address, lock_time()]
+    if (chain_name == "rinkeby"):
+        chan_address = "0xB38e0edEf675ABBf539680b2c2c43eAf8d8dc4ff"
+        chan = CHAN(address=chan_address)
+        assert gntw.address.lower() == chan.call().token()
+        print("GNTPaymentChannels already deployed!: {}".format(chan_address))
+        return chan
+    print("GNTPaymentChannels deployment args: {}".format(args))
+    txhash = CHAN.deploy(transaction={'from': owner}, args=args)
+    receipt = check_succesful_tx(chain.web3, txhash, timeout=300)
+    chan_address = receipt['contractAddress']
+    chan = CHAN(address=chan_address)
+    return chan
+
+
+def faucet(chain_name, chain, gnt, owner):
+    FCT = chain.provider.get_contract_factory('Faucet')
+    args = [gnt.address]
+    if (chain_name == "rinkeby"):
+        fct_address = "0x37Ce6582eB657D46a4EB802538C02FE69b48a348"
+        fct = FCT(address=fct_address)
+        assert gnt.address.lower() == fct.call().token()
+        print("Faucet already deployed!: {}".format(fct_address))
+        return fct
+    print("Faucet deployment args: {}".format(args))
+    txhash = FCT.deploy(transaction={'from': owner}, args=args)
+    receipt = check_succesful_tx(chain.web3, txhash, timeout=300)
+    fct_address = receipt['contractAddress']
+    chan = FCT(address=fct_address)
+    print("Faucet deployed")
+    return chan
+
+
+def move_gnt_to_faucet(chain, owner, gnt, fct):
+    balance = gnt.call().balanceOf(owner)
+    if (balance > 0):
+        print("There is some tGNT to move...")
+        chain.wait.for_receipt(
+            gnt.transact({'from': owner}).transfer(fct.address, balance))
+        print("Done! Moved {} tGNT".format(balance))
+    else:
+        print("Owner is empty, no tGNT left to transfer to faucet")
+
+
 def deploy_all_the_things(chain_name, chain, gnt, owner, consent, coldwallet):
+    fct = faucet(chain_name, chain, gnt, owner)
+    move_gnt_to_faucet(chain, owner, gnt, fct)
     gntw = deploy_gntw(chain_name, chain, gnt, owner)
     # fund_gntw(chain, owner, gnt, gntw)
     cdep = oraclized_deposit(chain_name, chain, owner, consent,
                              coldwallet, gntw, lock_time())
+    channels(chain_name, chain, gntw, owner)
     return gntw, cdep
 
 

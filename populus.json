@@ -70,7 +70,7 @@
       },
      "web3": {
         "eth": {
-            "default_account": "0x8e71bbe211abcc258497ec24b42f80816f0c42df"
+            "default_account": "0xfa55c1cb0613f0c3Dfc90240528C20375Ac9c064"
         },
         "provider": {
             "class": "web3.providers.ipc.IPCProvider",

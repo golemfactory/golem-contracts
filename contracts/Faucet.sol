@@ -5,14 +5,14 @@ import "./GolemNetworkToken.sol";
 /* Holds all tGNT after simulated crowdfunding on testnet. */
 /* To receive some tGNT just call create. */
 contract Faucet {
-    address public owner;
     GolemNetworkToken public token;
 
-    function Faucet(address _token, address _owner) {
-        owner = _owner;
+    function Faucet(address _token) {
         token = GolemNetworkToken(_token);
     }
 
+    // Note that this function does not actually create tGNT!
+    // Name was unchanged not to break API
     function create() external {
         var tokens = 1000 * 10 ** token.decimals();
         if (token.balanceOf(msg.sender) >= tokens) revert();
