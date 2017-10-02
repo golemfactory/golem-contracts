@@ -198,7 +198,7 @@ contract GolemNetworkTokenWrapped is Token {
             bytes32 payment = payments[i];
             address addr = address(payment);
             uint v = uint(payment) / 2**160;
-            if (v > balance) throw;
+            if (v > balance) revert();
             balances[addr] += v;
             balance -= v;
             Transfer(msg.sender, addr, v);
