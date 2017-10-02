@@ -14,11 +14,11 @@ contract GolemNetworkToken {
     string public constant symbol = "tGNT";
     uint8 public constant decimals = 18;  // 18 decimal places, the same as ETH.
 
-    uint256 public constant tokenCreationRate = 1000000000;
+    uint256 public constant tokenCreationRate = 10000000000;
 
     // The funding cap in weis.
-    uint256 public constant tokenCreationCap = 820 finney * tokenCreationRate;
-    uint256 public constant tokenCreationMin = 150 finney * tokenCreationRate;
+    uint256 public constant tokenCreationCap = 82 finney * tokenCreationRate;
+    uint256 public constant tokenCreationMin = 15 finney * tokenCreationRate;
 
     uint256 public fundingStartBlock;
     uint256 public fundingEndBlock;
@@ -35,7 +35,7 @@ contract GolemNetworkToken {
     GNTAllocation lockedAllocation;
 
     // The current total token supply.
-    uint256 totalTokens;
+    uint256 public totalTokens;
 
     mapping (address => uint256) balances;
 

@@ -1,4 +1,4 @@
-.PHONY: compile test channels
+.PHONY: compile test channels oracle batch deploy
 
 compile:
 	populus compile
@@ -14,3 +14,6 @@ oracle: compile
 
 batch: compile
 	pytest tests/test_brass_batch.py
+
+deploy:
+	python3 deploy.py
