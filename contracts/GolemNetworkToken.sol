@@ -10,15 +10,15 @@ contract GNTAllocation {
 
 /// @title Golem Network Token (GNT) - crowdfunding code for Golem Project
 contract GolemNetworkToken {
-    string public constant name = "Golem Network Token";
-    string public constant symbol = "GNT";
+    string public constant name = "Test Golem Network Token";
+    string public constant symbol = "tGNT";
     uint8 public constant decimals = 18;  // 18 decimal places, the same as ETH.
 
-    uint256 public constant tokenCreationRate = 1000;
+    uint256 public constant tokenCreationRate = 1000000000;
 
     // The funding cap in weis.
-    uint256 public constant tokenCreationCap = 820000 ether * tokenCreationRate;
-    uint256 public constant tokenCreationMin = 150000 ether * tokenCreationRate;
+    uint256 public constant tokenCreationCap = 820 finney * tokenCreationRate;
+    uint256 public constant tokenCreationMin = 150 finney * tokenCreationRate;
 
     uint256 public fundingStartBlock;
     uint256 public fundingEndBlock;

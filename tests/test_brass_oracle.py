@@ -15,9 +15,11 @@ def deploy_gnt(chain, factory_addr, migration_addr, start, finish):
 
 
 def fund_and_finalize(chain, gnt, x):
+    tcr = gnt.call().tokenCreationRate()
+    minv = int(gnt.call().tokenCreationMin() / 10 / tcr) + 1
+    maxv = int(gnt.call().tokenCreationCap() / 10 / tcr)
     for i, addr in enumerate(tester.accounts[:10]):
-        v = random.randrange(15000 * utils.denoms.ether,
-                             82000 * utils.denoms.ether)
+        v = random.randrange(minv, maxv)
         chain.wait.for_receipt(
             gnt.transact({'value': v, 'from': encode_hex(addr)}).create())
     chain.wait.for_receipt(
@@ -38,7 +40,7 @@ def deploy_gntw(chain, factory_addr, gnt):
 
 def fund_gntw(chain, gnt, gntw):
     for i, addr in enumerate(tester.accounts[:10]):
-        v = 100 * utils.denoms.ether
+        v = 10 * utils.denoms.finney
         assert v < gnt.call().balanceOf(addr)
         chain.wait.for_receipt(
             gntw.transact({'from': addr}).createPersonalDepositAddress())
