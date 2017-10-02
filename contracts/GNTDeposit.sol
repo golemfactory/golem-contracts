@@ -5,6 +5,7 @@ import "./ERC223/ERC223ReceivingContract.sol";
 
 contract GNTDeposit is ERC223ReceivingContract {
     address public oracle;
+    address public coldwallet;
     uint256 public withdrawal_delay;
 
     GolemNetworkTokenWrapped public token;
@@ -23,9 +24,11 @@ contract GNTDeposit is ERC223ReceivingContract {
 
     function GNTDeposit(address _token,
                         address _oracle,
+                        address _coldwallet,
                         uint256 _withdrawal_delay) {
         token = GolemNetworkTokenWrapped(_token);
         oracle = _oracle;
+        coldwallet = _coldwallet;
         withdrawal_delay = _withdrawal_delay;
     }
 

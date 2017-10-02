@@ -54,7 +54,7 @@ def fund_gntw(chain, gnt, gntw):
 
 
 def deploy_oraclized_deposit(chain, factory_addr, token, delay):
-    args = [token.address, factory_addr, delay]
+    args = [token.address, factory_addr, factory_addr, delay]
     cdep, tx = chain.provider.get_or_deploy_contract('GNTDeposit',
                                                      deploy_transaction={
                                                          'from': factory_addr
