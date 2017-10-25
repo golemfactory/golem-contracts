@@ -96,7 +96,7 @@ contract DepositSlot {
     address public wrapper;
 
     modifier onlyWrapper {
-        if (msg.sender != wrapper) revert();
+        require(msg.sender == wrapper);
         _;
     }
 
@@ -107,7 +107,7 @@ contract DepositSlot {
 
     function collect() onlyWrapper {
         uint amount = ERC20Basic(GNT).balanceOf(this);
-        if (amount == 0) revert();
+        require(amount != 0);
 
         ERC20Basic(GNT).transfer(wrapper, amount);
     }
@@ -143,12 +143,12 @@ contract GolemNetworkTokenWrapped is Token {
 
     function processDeposit() {
         address depositSlot = depositSlots[msg.sender];
-        if (depositSlot == 0) revert();
+        require(depositSlot != 0);
 
         DepositSlot(depositSlot).collect();
 
         uint balance = ERC20Basic(GNT).balanceOf(this);
-        if (balance <= totalSupply) revert();
+        require(balance > totalSupply);
 
         uint freshGNTW = balance - totalSupply;
         totalSupply += freshGNTW;
@@ -181,7 +181,7 @@ contract GolemNetworkTokenWrapped is Token {
     function transferFrom(address _from,
                           address _to,
                           uint256 _amount) returns (bool success) {
-        if (_to == address(this)) revert();        // not supported
+        require(_to != address(this));        // not supported
         return Token.transferFrom(_from, _to, _amount);
     }
 
@@ -198,7 +198,7 @@ contract GolemNetworkTokenWrapped is Token {
             bytes32 payment = payments[i];
             address addr = address(payment);
             uint v = uint(payment) / 2**160;
-            if (v > balance) revert();
+            require(v <= balance);
             balances[addr] += v;
             balance -= v;
             Transfer(msg.sender, addr, v);
@@ -208,7 +208,7 @@ contract GolemNetworkTokenWrapped is Token {
     }
 
     function withdrawGNT(uint amount) internal {
-        if (balances[msg.sender] < amount) revert();
+        require(balances[msg.sender] >= amount);
 
         balances[msg.sender] -= amount;
         totalSupply -= amount;
