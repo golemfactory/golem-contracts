@@ -1,0 +1,42 @@
+version: 2
+jobs:
+   build:
+     docker:
+       - image: ubuntu:16.04
+     environment:
+       LC_ALL: C.UTF-8
+       LANG: C.UTF-8
+     steps:
+       - checkout
+       - run:
+           name: checkout CircleCI
+           command: |
+               apt-get update
+               apt-get install -y git
+               git checkout CircleCI
+       - run:
+            name: install dependencies
+            command: |
+                apt-get install -y software-properties-common
+                add-apt-repository -y ppa:ethereum/ethereum
+                apt-get update
+                apt-get install -y solc
+                apt-get install -y python3-venv
+                apt-get install -y python3-dev
+                apt-get install -y libssl-dev
+                apt-get install -y g++
+                 python3 -m venv venv
+                . venv/bin/activate
+                pip install --upgrade pip
+                pip install -r requirements.txt
+                
+       - run:
+           name: compile project
+           command: |
+               . venv/bin/activate
+               populus compile
+       - run:
+           name: run tests
+           command: |
+               . venv/bin/activate
+               pytest 
