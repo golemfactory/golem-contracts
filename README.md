@@ -1,3 +1,5 @@
+[![CircleCI](https://circleci.com/gh/golemfactory/golem-contracts.svg?style=shield)](https://circleci.com/gh/golemfactory/golem-contracts)
+
 # PoC contents
 * *GNT* token  
 * *GNTW* for missing parts of ERC20 interface and ERC223 implementation  
