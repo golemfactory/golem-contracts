@@ -7,13 +7,12 @@ jobs:
        LC_ALL: C.UTF-8
        LANG: C.UTF-8
      steps:
-       - checkout
        - run:
-           name: checkout CircleCI
+           name: install git
            command: |
                apt-get update
                apt-get install -y git
-               git checkout CircleCI
+       - checkout
        - run:
             name: install dependencies
             command: |
