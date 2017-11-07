@@ -119,6 +119,9 @@ contract GolemNetworkTokenWrapped is Token {
     string public constant symbol = "GNTW";
     uint8 public constant decimals = 18;     // same as GNT
 
+    event BatchTransfer(address indexed from, address indexed to, uint256 value,
+        uint64 closureTime);
+
     /* address public constant GNT = 0xa74476443119A942dE498590Fe1f2454d7D4aC0d; */
     address public GNT;
 
@@ -188,7 +191,7 @@ contract GolemNetworkTokenWrapped is Token {
     // This function allows batch payments using sent value and
     // sender's balance.
     // Cost: 21000 + (5000 + ~2000) * n
-    function batchTransfer(bytes32[] payments) external {
+    function batchTransfer(bytes32[] payments, uint64 closureTime) external {
         uint balance = balances[msg.sender];
 
         for (uint i = 0; i < payments.length; ++i) {
@@ -201,7 +204,7 @@ contract GolemNetworkTokenWrapped is Token {
             require(v <= balance);
             balances[addr] += v;
             balance -= v;
-            Transfer(msg.sender, addr, v);
+            BatchTransfer(msg.sender, addr, v, closureTime);
         }
 
         balances[msg.sender] = balance;

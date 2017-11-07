@@ -3,6 +3,7 @@ from ethereum.utils import int_to_big_endian, zpad
 from eth_utils import (
     encode_hex,
 )
+import time
 from test_brass_oracle import mysetup
 
 
@@ -30,7 +31,9 @@ def test_batch_transfer(chain):
     eba3 = gntw.call().balanceOf(ethereum.tester.a3)
     eba4 = gntw.call().balanceOf(ethereum.tester.a4)
     payments, v = encode_payments([(1, 1), (2, 2), (3, 3), (4, 4)])
-    gntw.transact({'from': ethereum.tester.a0}).batchTransfer(payments)
+    closure_time = int(time.time())
+    gntw.transact({'from': ethereum.tester.a0}).batchTransfer(payments,
+                                                              closure_time)
     assert gntw.call().balanceOf(ethereum.tester.a1) == 1 + eba1
     assert gntw.call().balanceOf(ethereum.tester.a2) == 2 + eba2
     assert gntw.call().balanceOf(ethereum.tester.a3) == 3 + eba3
