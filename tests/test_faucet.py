@@ -40,8 +40,10 @@ def test_create_gnt(chain):
 
     print("GNT Balance of account", gnt.call().balanceOf(encode_hex(account)))
     print("GNT Balance of account", faucet.call().mybalance(encode_hex(account)))
+    print("GNT Balance of faucet", faucet.call().mybalance(faucet.address))
     print("GNT goal", faucet.call().goal())
     tx = chain.wait.for_receipt(
         faucet.transact({'from': account}).create())
     print("tx: {}".format(tx))
     print("GNT Balance of account", gnt.call().balanceOf(encode_hex(account)))
+    assert False

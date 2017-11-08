@@ -24,7 +24,7 @@ contract Faucet {
     }
 
     function goal() external view returns(uint256) {
-        return 1000 * 10 ** token.decimals();
+        return 1000 * 10 ** uint256(token.decimals());
     }
 }
 
