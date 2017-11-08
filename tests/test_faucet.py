@@ -36,8 +36,11 @@ def test_create_gnt(chain):
     print("ETH Balance of account ", chain.web3.eth.getBalance(encode_hex(account)))
     print("ETH Balance of a0 : ", chain.web3.eth.getBalance(encode_hex(ethereum.tester.a0)))
 
+    print("decimals: ", gnt.call().decimals())
+
     print("GNT Balance of account", gnt.call().balanceOf(encode_hex(account)))
     print("GNT Balance of account", faucet.call().mybalance(encode_hex(account)))
+    print("GNT goal", faucet.call().goal())
     tx = chain.wait.for_receipt(
         faucet.transact({'from': account}).create())
     print("tx: {}".format(tx))
