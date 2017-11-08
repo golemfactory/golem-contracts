@@ -18,5 +18,9 @@ contract Faucet {
         if (token.balanceOf(msg.sender) >= tokens) revert();
         token.transfer(msg.sender, tokens);
     }
+
+    function mybalance(address whom) external view returns(uint256) {
+        return token.balanceOf(whom);
+    }
 }
 
