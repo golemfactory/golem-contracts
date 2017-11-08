@@ -190,8 +190,16 @@ contract GolemNetworkTokenWrapped is Token {
 
     // This function allows batch payments using sent value and
     // sender's balance.
-    // Cost: 21000 + (5000 + ~2000) * n
+    // Opcode estimation:
+    // Cost: 21000 + 40 + (5000 + ~2000) * n
+    // Populus simulation:
+    // Cost: 33598 + ( 1215 + 2122 )*n
+    // 33598 <- Constant factors
+    // 1215 <- Instructions in loop without event generation
+    // 2122 <- Event generation
     function batchTransfer(bytes32[] payments, uint64 closureTime) external {
+        require( block.timestamp >= closureTime);
+
         uint balance = balances[msg.sender];
 
         for (uint i = 0; i < payments.length; ++i) {

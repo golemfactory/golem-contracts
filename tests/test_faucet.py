@@ -10,19 +10,19 @@ def test_create_gnt(chain):
     faucet, _ = chain.provider.get_or_deploy_contract('Faucet',
                                                       deploy_args=[gnt.address])
 
-    print("faucet GNT Balance ", gnt.call().balanceOf(faucet.address))
+    assert gnt.call().balanceOf(faucet.address) == 0
     chain.wait.for_receipt(gnt.transact({'from': encode_hex(ethereum.tester.a0)}).transfer(
-        faucet.address, 10**18 ))
-    print("faucet GNT Balance ",
-          gnt.call().balanceOf(faucet.address))
+        faucet.address, 1000 * utils.denoms.ether ))
+    assert gnt.call().balanceOf(faucet.address) == 1000 * utils.denoms.ether
     key = sha3(to_string(11))
     account = privtoaddr(key)
 
     ethereum.tester.accounts.append(account)
     ethereum.tester.keys.append(key)
 
-    print("ETH Balance of account : ", chain.web3.eth.getBalance(encode_hex(account)))
-    print("ETH Balance of a0 : ", chain.web3.eth.getBalance(encode_hex(ethereum.tester.a0)))
+    assert chain.web3.eth.getBalance(encode_hex(account)) == 0
+    previousA0 = chain.web3.eth.getBalance(encode_hex(ethereum.tester.a0))
+    assert previousA0 > utils.denoms.ether
 
     tx = Transaction(
         nonce=chain.web3.eth.getTransactionCount(ethereum.tester.a0),
@@ -38,16 +38,13 @@ def test_create_gnt(chain):
     raw_tx_hex = chain.web3.toHex(raw_tx)
     chain.web3.eth.sendRawTransaction(raw_tx_hex)
 
-    print("ETH Balance of account ", chain.web3.eth.getBalance(encode_hex(account)))
-    print("ETH Balance of a0 : ", chain.web3.eth.getBalance(encode_hex(ethereum.tester.a0)))
+    assert gnt.call().balanceOf(faucet.address) == 1000 * utils.denoms.ether
 
-    print("decimals: ", gnt.call().decimals())
+    assert chain.web3.eth.getBalance(encode_hex(account)) == utils.denoms.ether
 
-    print("GNT Balance of account", gnt.call().balanceOf(encode_hex(account)))
-    print("GNT Balance of account", faucet.call().mybalance(encode_hex(account)))
-    print("GNT Balance of faucet", faucet.call().mybalance(faucet.address))
-    print("GNT goal", faucet.call().goal())
+    assert gnt.call().decimals() == 18
+    assert gnt.call().balanceOf(encode_hex(account)) == 0
     tx = chain.wait.for_receipt(
-        faucet.transact({'from': account}).create())
-    print("tx: {}".format(tx))
-    print("GNT Balance of account", gnt.call().balanceOf(encode_hex(account)))
+        faucet.transact({'from': encode_hex(account)}).create())
+    assert gnt.call().balanceOf(encode_hex(account)) == 1000 * utils.denoms.ether
+    assert gnt.call().balanceOf(faucet.address) == 0

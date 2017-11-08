@@ -32,7 +32,6 @@ def test_batch_transfer(chain):
     eba3 = gntw.call().balanceOf(ethereum.tester.a3)
     eba4 = gntw.call().balanceOf(ethereum.tester.a4)
     payments, v = encode_payments([(1, 1), (2, 2), (3, 3), (4, 4)])
-    closure_time = int(time.time())
 
     #This dict is used to count events for given block hash
     #There is a quirk that same events can appear many times during
@@ -46,8 +45,13 @@ def test_batch_transfer(chain):
 
     cbk = functools.partial(onBatchEvent, eventsQueue=q)
     gntw.on('BatchTransfer', None, cbk)
-    gntw.transact({'from': ethereum.tester.a0}).batchTransfer(payments,
-                                                              closure_time)
+
+    #Closure time has to be in past, requestor is making payments for
+    #already made obligations
+    closure_time = chain.web3.eth.getBlock('latest')['timestamp']
+
+    tx = chain.wait.for_receipt(gntw.transact({'from': ethereum.tester.a0}).batchTransfer(payments,
+                                                              closure_time))
     assert gntw.call().balanceOf(ethereum.tester.a1) == 1 + eba1
     assert gntw.call().balanceOf(ethereum.tester.a2) == 2 + eba2
     assert gntw.call().balanceOf(ethereum.tester.a3) == 3 + eba3
@@ -57,6 +61,7 @@ def test_batch_transfer(chain):
     while not q.empty():
         try:
             batchEvent = q.get()
+            assert chain.web3.eth.getBlock(batchEvent['blockNumber'])['timestamp'] >= batchEvent['args']['closureTime']
             if batchEvent['blockHash'] in eventNoForHash.keys():
                 eventNoForHash[batchEvent['blockHash']] += 1
             else:
@@ -65,6 +70,5 @@ def test_batch_transfer(chain):
             assert False
 
     for entry in eventNoForHash:
-        print(entry)
         assert eventNoForHash[entry] == 3
 
