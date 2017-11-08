@@ -10,6 +10,11 @@ def test_create_gnt(chain):
     faucet, _ = chain.provider.get_or_deploy_contract('Faucet',
                                                       deploy_args=[gnt.address])
 
+    print("faucet GNT Balance ", gnt.call().balanceOf(faucet.address))
+    chain.wait.for_receipt(gnt.transact({'from': encode_hex(ethereum.tester.a0)}).transfer(
+        faucet.address, 10**18 ))
+    print("faucet GNT Balance ",
+          gnt.call().balanceOf(faucet.address))
     key = sha3(to_string(11))
     account = privtoaddr(key)
 
@@ -46,4 +51,3 @@ def test_create_gnt(chain):
         faucet.transact({'from': account}).create())
     print("tx: {}".format(tx))
     print("GNT Balance of account", gnt.call().balanceOf(encode_hex(account)))
-    assert False
