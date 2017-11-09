@@ -14,7 +14,7 @@ contract Faucet {
     // Note that this function does not actually create tGNT!
     // Name was unchanged not to break API
     function create() external {
-        var tokens = 1000 * 10 ** token.decimals();
+        uint256 tokens = 1000 * 10 ** uint256(token.decimals());
         if (token.balanceOf(msg.sender) >= tokens) revert();
         token.transfer(msg.sender, tokens);
     }
