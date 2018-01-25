@@ -1,3 +1,2 @@
-web3==3.8.0
-populus==1.10.1
-pytest
+populus
+pytest!=3.3.*

@@ -198,10 +198,10 @@ def prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc):
     thevalue = pc.call().getDeposited(channel)
     assert thevalue == 0
 
-    thereceiver = pc.call().getReceiver(channel)
+    thereceiver = pc.call().getReceiver(channel).lower()
     assert thereceiver == eth_utils.encode_hex(receiver_addr)
 
-    theowner = pc.call().getOwner(channel)
+    theowner = pc.call().getOwner(channel).lower()
     assert theowner == eth_utils.encode_hex(owner_addr)
 
     assert 0 == pc.call().getDeposited(channel)
@@ -220,7 +220,8 @@ def prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc):
                                 byteorder='big')
     assert log_amount == half_dep
     assert half_dep == pc.call().getDeposited(channel)
-    assert eth_utils.encode_hex(owner_addr) == pc.call().getOwner(channel)
+    assert eth_utils.encode_hex(owner_addr) == \
+        pc.call().getOwner(channel).lower()
     chain.wait.for_receipt(
         gntw.transact({'from': owner_addr}).transfer(pc.address,
                                                      half_dep, channel))
