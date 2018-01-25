@@ -123,11 +123,9 @@ contract GNTDeposit is ERC223ReceivingContract {
         external
     {
         var _amount = balances[msg.sender];
-        if (!token.transfer(_to, _amount)) {
-            revert();
-        }
-        delete balances[msg.sender];
-        delete locked_until[msg.sender];
+        balances[msg.sender] = 0;
+        locked_until[msg.sender] = 0;
+        require(token.transfer(_to, _amount));
         Withdraw(msg.sender, _to, _amount); // event
     }
 
@@ -135,38 +133,30 @@ contract GNTDeposit is ERC223ReceivingContract {
         onlyOracle
         external
         returns (bool)
-        {
-        if (balances[_whom] < _burn)
-            revert();
-        if (token.transfer(0xdeadbeef, _burn)) {
-            balances[_whom] -= _burn;
-            if (balances[_whom] == 0) {
-                delete balances[_whom];
-                delete locked_until[_whom];
-            }
-            Burn(_whom, _burn); // event
-            return true;
+    {
+        require(balances[_whom] >= _burn);
+        balances[_whom] -= _burn;
+        if (balances[_whom] == 0) {
+            locked_until[_whom] = 0;
         }
-        return false;
+        require(token.transfer(0xdeadbeef, _burn));
+        Burn(_whom, _burn); // event
+        return true;
     }
 
     function reimburse(address _owner, address _receiver, uint256 _reimbursement)
         onlyOracle
         external
         returns (bool)
-        {
-        if (balances[_owner] < _reimbursement)
-            revert();
-        if (token.transfer(_receiver, _reimbursement)) {
-            balances[_owner] -= _reimbursement;
-            if (balances[_owner] == 0) {
-                delete balances[_owner];
-                delete locked_until[_owner];
-            }
-            Reimburse(_owner, _receiver, _reimbursement); // event
-            return true;
+    {
+        require(balances[_owner] >= _reimbursement);
+        balances[_owner] -= _reimbursement;
+        if (balances[_owner] == 0) {
+            locked_until[_owner] = 0;
         }
-        return false;
+        require(token.transfer(_receiver, _reimbursement));
+        Reimburse(_owner, _receiver, _reimbursement); // event
+        return true;
     }
 
     // internals
