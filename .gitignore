@@ -4,3 +4,4 @@ build
 /README.html
 venv
 .mypy_cache
+.pytest_cache
