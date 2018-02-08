@@ -1,5 +1,6 @@
 import ethereum.tester as tester
 import functools
+import os
 import queue
 import random
 import time
@@ -191,7 +192,7 @@ def test_burn(chain):
 def test_reimburse(chain):
     owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
     other_addr = tester.accounts[1]
-    subtask_id = ""  # shouldn't be empty but there's some issue
+    subtask_id = "subtask_id123".zfill(32)
     closure_time = 2137
     deposit_size = 100000
     half_dep = int(deposit_size / 2)
@@ -203,7 +204,7 @@ def test_reimburse(chain):
     q = queue.Queue()
     cbk = functools.partial(lambda event, q: q.put(event), q=q)
     cdep.on('ReimburseForSubtask', None, cbk)
-    cdep.on('ReimburseForBatchTransfer', None, cbk)
+    cdep.on('ReimburseForNoPayment', None, cbk)
     cdep.on('ReimburseForVerificationCosts', None, cbk)
     # not oracle
     with pytest.raises(TransactionFailed):
@@ -218,7 +219,7 @@ def test_reimburse(chain):
 
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            cdep.transact({'from': other_addr}).reimburseForBatchTransfer(
+            cdep.transact({'from': other_addr}).reimburseForNoPayment(
                 owner_addr,
                 other_addr,
                 half_dep,
@@ -230,7 +231,8 @@ def test_reimburse(chain):
         chain.wait.for_receipt(
             cdep.transact({'from': other_addr}).reimburseForVerificationCosts(
                 owner_addr,
-                half_dep))
+                half_dep,
+                subtask_id))
     assert amnt == gntw.call().balanceOf(cdep.address)
     assert q.empty()
 
@@ -242,47 +244,45 @@ def test_reimburse(chain):
             half_dep,
             subtask_id))
     time.sleep(1)
-    assert not q.empty()
     event = q.get()
     assert 'ReimburseForSubtask' == event['event']
     assert owner_addr == utils.decode_hex(event['args']['_requestor'][2:])
     assert other_addr == utils.decode_hex(event['args']['_provider'][2:])
     assert half_dep == event['args']['_amount']
     assert subtask_id == event['args']['_subtask_id']
-    assert amnt-half_dep == cdep.call().balanceOf(owner_addr)
-    assert amnt-half_dep == gntw.call().balanceOf(cdep.address)
+    assert amnt - half_dep == cdep.call().balanceOf(owner_addr)
+    assert amnt - half_dep == gntw.call().balanceOf(cdep.address)
 
     amount = 1
     chain.wait.for_receipt(
-        cdep.transact({'from': oracle_addr}).reimburseForBatchTransfer(
+        cdep.transact({'from': oracle_addr}).reimburseForNoPayment(
             owner_addr,
             other_addr,
             amount,
             closure_time))
-    time.sleep(1)
-    assert not q.empty()
     event = q.get()
-    assert 'ReimburseForBatchTransfer' == event['event']
+    assert 'ReimburseForNoPayment' == event['event']
     assert owner_addr == utils.decode_hex(event['args']['_requestor'][2:])
     assert other_addr == utils.decode_hex(event['args']['_provider'][2:])
     assert amount == event['args']['_amount']
     assert closure_time == event['args']['_closure_time']
-    assert amnt-half_dep-amount == cdep.call().balanceOf(owner_addr)
-    assert amnt-half_dep-amount == gntw.call().balanceOf(cdep.address)
+    assert amnt - half_dep - amount == cdep.call().balanceOf(owner_addr)
+    assert amnt - half_dep - amount == gntw.call().balanceOf(cdep.address)
 
     amount = half_dep - 1
     chain.wait.for_receipt(
         cdep.transact({'from': oracle_addr}).reimburseForVerificationCosts(
             owner_addr,
-            amount))
-    time.sleep(1)
-    assert not q.empty()
+            amount,
+            subtask_id))
     event = q.get()
     assert 'ReimburseForVerificationCosts' == event['event']
     assert owner_addr == utils.decode_hex(event['args']['_from'][2:])
     assert amount == event['args']['_amount']
     assert 0 == cdep.call().balanceOf(owner_addr)
     assert 0 == gntw.call().balanceOf(cdep.address)
+
+    assert q.empty()
 
 
 def blockTimestamp(chain):

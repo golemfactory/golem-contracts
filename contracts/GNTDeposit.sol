@@ -20,9 +20,9 @@ contract GNTDeposit is ERC223ReceivingContract {
     event Lock(address indexed _owner);
     event Unlock(address indexed _owner);
     event Burn(address indexed _who, uint256 _amount);
-    event ReimburseForSubtask(address indexed _requestor, address _provider, uint256 _amount, string _subtask_id);
-    event ReimburseForBatchTransfer(address indexed _requestor, address _provider, uint256 _amount, uint256 indexed _closure_time);
-    event ReimburseForVerificationCosts(address indexed _from, uint256 _amount);
+    event ReimburseForSubtask(address indexed _requestor, address _provider, uint256 _amount, bytes32 _subtask_id);
+    event ReimburseForNoPayment(address indexed _requestor, address _provider, uint256 _amount, uint256 indexed _closure_time);
+    event ReimburseForVerificationCosts(address indexed _from, uint256 _amount, bytes32 _subtask_id);
 
     function GNTDeposit(address _token,
                         address _oracle,
@@ -139,7 +139,7 @@ contract GNTDeposit is ERC223ReceivingContract {
         Burn(_whom, _burn);
     }
 
-    function reimburseForSubtask(address _requestor, address _provider, uint256 _amount, string _subtask_id)
+    function reimburseForSubtask(address _requestor, address _provider, uint256 _amount, bytes32 _subtask_id)
         onlyOracle
         external
     {
@@ -147,20 +147,20 @@ contract GNTDeposit is ERC223ReceivingContract {
         ReimburseForSubtask(_requestor, _provider, _amount, _subtask_id);
     }
 
-    function reimburseForBatchTransfer(address _requestor, address _provider, uint256 _amount, uint256 _closure_time)
+    function reimburseForNoPayment(address _requestor, address _provider, uint256 _amount, uint256 _closure_time)
         onlyOracle
         external
     {
         _reimburse(_requestor, _provider, _amount);
-        ReimburseForBatchTransfer(_requestor, _provider, _amount, _closure_time);
+        ReimburseForNoPayment(_requestor, _provider, _amount, _closure_time);
     }
 
-    function reimburseForVerificationCosts(address _from, uint256 _amount)
+    function reimburseForVerificationCosts(address _from, uint256 _amount, bytes32 _subtask_id)
         onlyOracle
         external
     {
         _reimburse(_from, coldwallet, _amount);
-        ReimburseForVerificationCosts(_from, _amount);
+        ReimburseForVerificationCosts(_from, _amount, _subtask_id);
     }
     // internals
 
