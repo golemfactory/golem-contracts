@@ -20,7 +20,9 @@ contract GNTDeposit is ERC223ReceivingContract {
     event Lock(address indexed _owner);
     event Unlock(address indexed _owner);
     event Burn(address indexed _who, uint256 _amount);
-    event Reimburse(address indexed _owner, address _receiver, uint256 _amount);
+    event ReimburseForSubtask(address indexed _requestor, address _provider, uint256 _amount, bytes32 _subtask_id);
+    event ReimburseForNoPayment(address indexed _requestor, address _provider, uint256 _amount, uint256 indexed _closure_time);
+    event ReimburseForVerificationCosts(address indexed _from, uint256 _amount, bytes32 _subtask_id);
 
     function GNTDeposit(address _token,
                         address _oracle,
@@ -126,39 +128,40 @@ contract GNTDeposit is ERC223ReceivingContract {
         balances[msg.sender] = 0;
         locked_until[msg.sender] = 0;
         require(token.transfer(_to, _amount));
-        Withdraw(msg.sender, _to, _amount); // event
+        Withdraw(msg.sender, _to, _amount);
     }
 
     function burn(address _whom, uint256 _burn)
         onlyOracle
         external
-        returns (bool)
     {
-        require(balances[_whom] >= _burn);
-        balances[_whom] -= _burn;
-        if (balances[_whom] == 0) {
-            locked_until[_whom] = 0;
-        }
-        require(token.transfer(0xdeadbeef, _burn));
-        Burn(_whom, _burn); // event
-        return true;
+        _reimburse(_whom, 0xdeadbeef, _burn);
+        Burn(_whom, _burn);
     }
 
-    function reimburse(address _owner, address _receiver, uint256 _reimbursement)
+    function reimburseForSubtask(address _requestor, address _provider, uint256 _amount, bytes32 _subtask_id)
         onlyOracle
         external
-        returns (bool)
     {
-        require(balances[_owner] >= _reimbursement);
-        balances[_owner] -= _reimbursement;
-        if (balances[_owner] == 0) {
-            locked_until[_owner] = 0;
-        }
-        require(token.transfer(_receiver, _reimbursement));
-        Reimburse(_owner, _receiver, _reimbursement); // event
-        return true;
+        _reimburse(_requestor, _provider, _amount);
+        ReimburseForSubtask(_requestor, _provider, _amount, _subtask_id);
     }
 
+    function reimburseForNoPayment(address _requestor, address _provider, uint256 _amount, uint256 _closure_time)
+        onlyOracle
+        external
+    {
+        _reimburse(_requestor, _provider, _amount);
+        ReimburseForNoPayment(_requestor, _provider, _amount, _closure_time);
+    }
+
+    function reimburseForVerificationCosts(address _from, uint256 _amount, bytes32 _subtask_id)
+        onlyOracle
+        external
+    {
+        _reimburse(_from, coldwallet, _amount);
+        ReimburseForVerificationCosts(_from, _amount, _subtask_id);
+    }
     // internals
 
     function _do_deposit(address _owner, uint _amount)
@@ -168,6 +171,17 @@ contract GNTDeposit is ERC223ReceivingContract {
         balances[_owner] += _amount;
         Deposit(_owner, _amount); // event
         return true;
+    }
+
+    function _reimburse(address _from, address _to, uint256 _amount)
+        private
+    {
+        require(balances[_from] >= _amount);
+        balances[_from] -= _amount;
+        if (balances[_from] == 0) {
+            locked_until[_from] = 0;
+        }
+        require(token.transfer(_to, _amount));
     }
 
 }
