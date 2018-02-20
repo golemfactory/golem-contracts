@@ -20,8 +20,8 @@ contract GNTDeposit is ERC223ReceivingContract {
     event Lock(address indexed _owner);
     event Unlock(address indexed _owner);
     event Burn(address indexed _who, uint256 _amount);
-    event ReimburseForSubtask(address indexed _requestor, address _provider, uint256 _amount, bytes32 _subtask_id);
-    event ReimburseForNoPayment(address indexed _requestor, address _provider, uint256 _amount, uint256 indexed _closure_time);
+    event ReimburseForSubtask(address indexed _requestor, address indexed _provider, uint256 _amount, bytes32 _subtask_id);
+    event ReimburseForNoPayment(address indexed _requestor, address indexed _provider, uint256 _amount, uint256 _closure_time);
     event ReimburseForVerificationCosts(address indexed _from, uint256 _amount, bytes32 _subtask_id);
 
     function GNTDeposit(address _token,
