@@ -1,2 +1,3 @@
 populus
 pytest!=3.3.*
+eth-utils==0.7.4
