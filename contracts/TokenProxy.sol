@@ -13,17 +13,20 @@ contract TransferableToken {
 contract Gate {
     TransferableToken private TOKEN;
     TokenProxy private PROXY;
+    address private USER;
 
     /// Gates are to be created by the TokenProxy.
-    function Gate(TransferableToken _token, TokenProxy _proxy) public {
+    function Gate(TransferableToken _token, TokenProxy _proxy, address _user) public {
         TOKEN = _token;
         PROXY = _proxy;
+        USER = _user;
     }
 
     /// After the User transfers some tokens to the address of the Gate,
     /// this function can be executed to close the gate and notify the Proxy
     /// about this.
     function() external {
+        require(msg.sender == USER);
 
         // Transfer all Gate's tokens to Proxy address.
         uint256 balance = TOKEN.balanceOf(this);
@@ -82,11 +85,12 @@ contract TokenProxy {
 
     /// Create a new migration Gate for the User.
     function openGate() external {
+        address user = msg.sender;
+
         // Create new Gate.
-        address gate = new Gate(TOKEN, this);
+        address gate = new Gate(TOKEN, this, user);
 
         // Remember User - Gate relationship.
-        address user = msg.sender;
         gates[gate] = user;
 
         GateOpened(gate, user);
