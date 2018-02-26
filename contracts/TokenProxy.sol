@@ -22,18 +22,23 @@ contract Gate {
         USER = _user;
     }
 
-    /// After the User transfers some tokens to the address of the Gate,
-    /// this function can be executed to close the gate and notify the Proxy
-    /// about this.
-    function() external {
-        require(msg.sender == USER);
-
+    function transferToProxy() public {
         // Transfer all Gate's tokens to Proxy address.
         uint256 balance = TOKEN.balanceOf(this);
         assert(TOKEN.transfer(PROXY, balance));
 
         // Notify the Proxy.
-        PROXY.closeGate(balance);
+        PROXY.onTransferFromGate(balance);
+    }
+
+    /// Close the Gate.
+    function close() external {
+        require(msg.sender == USER);
+
+        // Handle current Gate's balance.
+        transferToProxy();
+
+        PROXY.onGateClosed();
 
         // Delete data before selfdestruct() to recover more gas.
         delete TOKEN;
@@ -42,6 +47,12 @@ contract Gate {
         // There should not be any Ether in the Gate balance, so use the "dead"
         // address for selfdestruct().
         selfdestruct(0x000000000000000000000000000000000000dEaD);
+    }
+
+    function() external {
+        // TODO: Check if needed.
+
+        transferToProxy();
     }
 }
 
@@ -77,7 +88,12 @@ contract TokenProxy {
     mapping(address => address) private gates;
 
     event GateOpened(address indexed gate, address indexed user);
-    event GateClosed(address indexed gate, address indexed user, uint256 balance);
+    event GateClosed(address indexed gate, address indexed user);
+
+    // Events taken from ERC777:
+    event Minted(address indexed operator, address indexed to, uint256 amount, bytes operatorData);
+    event Burned(address indexed operator, address indexed from, uint256 amount, bytes userData, bytes operatorData);
+
 
     function TokenProxy(TransferableToken _token) public {
         TOKEN = _token;
@@ -96,8 +112,24 @@ contract TokenProxy {
         GateOpened(gate, user);
     }
 
+    function onTransferFromGate(uint256 _value) external {
+        address gate = msg.sender;
+        address user = gates[gate];
+
+        // Make sure the notification comes from an exisiting Gate.
+        require(user != 0);
+
+        // Handle the information about the amount of migrated tokens.
+        // This is a trusted information becase it comes from the Gate.
+        totalSupply += _value;
+        balances[user] += _value;
+
+        // TODO: Transfer event here?
+        Minted(this, user, _value, "");
+    }
+
     /// Notification handler for a Gate to be closed.
-    function closeGate(uint256 _migratedBalance) external {
+    function onGateClosed() external {
         address gate = msg.sender;
         address user = gates[gate];
 
@@ -109,11 +141,19 @@ contract TokenProxy {
         // recovers some gas.
         delete gates[gate];
 
-        // Handle the information about the amount of migrated tokens.
-        // This is a trusted information becase it comes from the Gate.
-        totalSupply += _migratedBalance;
-        balances[user] += _migratedBalance;
+        GateClosed(gate, user);
+    }
 
-        assert(TOKEN.balanceOf(this) == totalSupply);
+    function withdraw(uint256 _value) external {
+        address user = msg.sender;
+        uint256 balance = balances[user];
+        require(_value <= balance);
+
+        balances[msg.sender] = (balance - _value);
+        totalSupply -= _value;
+
+        TOKEN.transfer(user, _value);
+
+        Burned(this, user, _value, "", "");
     }
 }
