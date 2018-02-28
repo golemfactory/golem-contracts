@@ -25,7 +25,7 @@ contract Gate {
     function transferToProxy() public {
         // Transfer all Gate's tokens to Proxy address.
         uint256 balance = TOKEN.balanceOf(this);
-        assert(TOKEN.transfer(PROXY, balance));
+        require(TOKEN.transfer(PROXY, balance));
 
         // Notify the Proxy.
         PROXY.onTransferFromGate(balance);
