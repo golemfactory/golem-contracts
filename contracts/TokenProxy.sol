@@ -6,20 +6,18 @@ contract TransferableToken {
 }
 
 
-/// The Gate is a temporary contract with unique address to allow a token holder
-/// (called "User") to transfer token from original Token to the Proxy.
+/// The Gate is a contract with unique address to allow a token holder
+/// (called "User") to transfer tokens from original Token to the Proxy.
 ///
 /// TODO: Rename to MigrationGate?
 contract Gate {
     TransferableToken private TOKEN;
     TokenProxy private PROXY;
-    address private USER;
 
     /// Gates are to be created by the TokenProxy.
-    function Gate(TransferableToken _token, TokenProxy _proxy, address _user) public {
+    function Gate(TransferableToken _token, TokenProxy _proxy) public {
         TOKEN = _token;
         PROXY = _proxy;
-        USER = _user;
     }
 
     function transferToProxy() public {
@@ -27,18 +25,17 @@ contract Gate {
         uint256 balance = TOKEN.balanceOf(this);
         require(TOKEN.transfer(PROXY, balance));
 
-        // Notify the Proxy.
-        PROXY.onTransferFromGate(balance);
+        // Notify the Proxy. This will also validate the user.
+        PROXY.onTransferFromGate(msg.sender, balance);
     }
 
     /// Close the Gate.
     function close() external {
-        require(msg.sender == USER);
-
         // Handle current Gate's balance.
         transferToProxy();
 
-        PROXY.onGateClosed();
+        // FIXME: User is passed again to Proxy here. Bad design? Remove close().
+        PROXY.onGateClosed(msg.sender);
 
         // Delete data before selfdestruct() to recover more gas.
         delete TOKEN;
@@ -91,49 +88,51 @@ contract TokenProxy {
         TOKEN = _token;
     }
 
+    function getGateAddress(address _user) external view returns (address) {
+        return gates[_user];
+    }
+
     /// Create a new migration Gate for the User.
     function openGate() external {
         address user = msg.sender;
 
+        // Do not allow creating more than one Gate per User.
+        require(gates[user] == 0);
+
         // Create new Gate.
-        address gate = new Gate(TOKEN, this, user);
+        address gate = new Gate(TOKEN, this);
 
         // Remember User - Gate relationship.
-        gates[gate] = user;
+        gates[user] = gate;
 
         GateOpened(gate, user);
     }
 
-    function onTransferFromGate(uint256 _value) external {
-        address gate = msg.sender;
-        address user = gates[gate];
-
+    function onTransferFromGate(address _user, uint256 _value) external {
         // Make sure the notification comes from an exisiting Gate.
-        require(user != 0);
+        require(msg.sender == gates[_user]);
 
         // Handle the information about the amount of migrated tokens.
         // This is a trusted information becase it comes from the Gate.
         totalSupply += _value;
-        balances[user] += _value;
+        balances[_user] += _value;
 
-        // TODO: Transfer event here?
-        Minted(this, user, _value, "");
+        Minted(this, _user, _value, "");
     }
 
     /// Notification handler for a Gate to be closed.
-    function onGateClosed() external {
-        address gate = msg.sender;
-        address user = gates[gate];
+    function onGateClosed(address _user) external {
+        address gate = gates[_user];
 
         // Make sure the notification comes from an exisiting Gate.
-        require(user != 0);
+        require(msg.sender == gate);
 
         // Remove the entry about the Gate. Another notification from the same
         // Gate is not possible, but this adds additional protection and
         // recovers some gas.
-        delete gates[gate];
+        delete gates[_user];
 
-        GateClosed(gate, user);
+        GateClosed(gate, _user);
     }
 
     function withdraw(uint256 _value) external {
