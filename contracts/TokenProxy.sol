@@ -70,14 +70,12 @@ contract Gate {
 /// the procedure is as follows.
 ///
 /// 1. Create an individual Gate for migration. The Gate address will be
-///    reported with the GateOpened event.
+///    reported with the GateOpened event and accessible by getGateAddress().
 /// 2. Transfer tokens to be migrated to the Gate address.
-/// 3. Close the Gate by sending empty transaction to the Gate address.
+/// 3. Execute Gate.transferToProxy() to finalize the migration.
 ///
 /// In the step 3 the User's tokens are going to be moved from the Gate to
-/// the User's balance in the Proxy. The Gate is going to be destroyed so
-/// it cannot be used again (the User must create a new Gate). However,
-/// the step 2 can be repeated multiple times.
+/// the User's balance in the Proxy.
 contract TokenProxy {
 
     TransferableToken public TOKEN;
