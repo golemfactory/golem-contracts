@@ -48,12 +48,6 @@ contract Gate {
         // address for selfdestruct().
         selfdestruct(0x000000000000000000000000000000000000dEaD);
     }
-
-    function() external {
-        // TODO: Check if needed.
-
-        transferToProxy();
-    }
 }
 
 
