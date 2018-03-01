@@ -1,92 +1,39 @@
 pragma solidity ^0.4.16;
 
-import "./ERC223/ERC223.sol";
-import "./ERC223/ERC223ReceivingContract.sol";
-import "./ERC20/ERC20Basic.sol";
-import "./ERC20/ERC20Extended.sol";
+import "./open_zeppelin/StandardToken.sol";
+import "./open_zeppelin/ERC20Basic.sol";
 
-// ERC223 and ERC20 -compliant wrapper token for GNT
-// reworked from original GNTW implementation.
-// Original GNTW implementation notice:
-// // ERC20-compliant wrapper token for GNT
-// // adapted from code provided by u/JonnyLatte
+contract BatchToken is StandardToken {
+    event BatchTransfer(address indexed from, address indexed to, uint256 value,
+        uint64 closureTime);
 
+    // This function allows batch payments using sent value and
+    // sender's balance.
+    // Opcode estimation:
+    // Cost: 21000 + 2000 + 5000 + (20000 + 5000) * n
+    // 2000 - arithmetics
+    // 5000 - balance update at the end
+    // 20000 - pesimistic case of balance update in the loop
+    // 5000 - arithmetics + event in the loop
+    function batchTransfer(bytes32[] payments, uint64 closureTime) external {
+        require(block.timestamp >= closureTime);
 
-// ERC223 is used because it is easier to handle than ERC20.
-// ERC20 is used because of lack of support of ERC223 from Raiden
-// and because ERC223 is in flux
-contract Token is ERC223, ERC20Extended, ERC20Basic {
+        uint balance = balances[msg.sender];
 
-    function balanceOf(address _owner) view returns (uint256 balance) {
-        return balances[_owner];
-    }
-
-    // Function that is called when a user or another contract wants to transfer funds.
-    function transfer(address _to, uint _value, bytes _data)
-        returns (bool success)
-    {
-        uint codeLength;
-
-        assembly {
-            // Retrieve the size of the code on target address, this needs assembly .
-            codeLength := extcodesize(_to)
+        for (uint i = 0; i < payments.length; ++i) {
+            // A payment contains compressed data:
+            // first 96 bits (12 bytes) is a value,
+            // following 160 bits (20 bytes) is an address.
+            bytes32 payment = payments[i];
+            address addr = address(payment);
+            uint v = uint(payment) / 2**160;
+            require(v <= balance);
+            balances[addr] += v;
+            balance -= v;
+            BatchTransfer(msg.sender, addr, v, closureTime);
         }
 
-        var senderBalance = balances[msg.sender];
-        if (senderBalance >= _value && _value > 0) {
-            senderBalance -= _value;
-            balances[msg.sender] = senderBalance;
-            balances[_to] += _value;
-            if(codeLength>0) {
-                ERC223ReceivingContract receiver = ERC223ReceivingContract(_to);
-                // onTokenReceived does revert() if anything goes wrong
-                receiver.onTokenReceived(msg.sender, _value, _data);
-            }
-            // FIXME: when ERC223 will stabilize a bit, revisit this:
-            Transfer(msg.sender, _to, _value);
-            Transfer(msg.sender, _to, _value, _data);
-            return true;
-        }
-        return false;
-    }
-
-    // Standard function transfer similar to ERC20 transfer with no _data .
-    // Added due to backwards compatibility reasons.
-    function transfer(address _to, uint _value)
-        returns (bool success)
-    {
-        bytes empty;
-        return transfer(_to, _value, empty);
-    }
-
-    function transferFrom(address _from,
-                          address _to,
-                          uint256 _amount)
-        returns (bool success) {
-
-        if (balances[_from] >= _amount
-            && allowed[_from][msg.sender] >= _amount
-            && _amount > 0) {
-
-            balances[_to] += _amount;
-            balances[_from] -= _amount;
-            allowed[_from][msg.sender] -= _amount;
-            Transfer(_from, _to, _amount);
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    function approve(address _spender, uint256 _amount) returns (bool success) {
-        allowed[msg.sender][_spender] = _amount;
-        Approval(msg.sender, _spender, _amount);
-        return true;
-    }
-
-    function allowance(address _owner,
-                       address _spender) view returns (uint256 remaining) {
-        return allowed[_owner][_spender];
+        balances[msg.sender] = balance;
     }
 }
 
@@ -113,14 +60,11 @@ contract DepositSlot {
     }
 }
 
-contract GolemNetworkTokenWrapped is Token {
+contract GolemNetworkTokenWrapped is BatchToken {
     string public constant standard = "Token 0.1";
     string public constant name = "Golem Network Token Wrapped";
     string public constant symbol = "GNTW";
     uint8 public constant decimals = 18;     // same as GNT
-
-    event BatchTransfer(address indexed from, address indexed to, uint256 value,
-        uint64 closureTime);
 
     /* address public constant GNT = 0xa74476443119A942dE498590Fe1f2454d7D4aC0d; */
     address public GNT;
@@ -151,77 +95,19 @@ contract GolemNetworkTokenWrapped is Token {
         DepositSlot(depositSlot).collect();
 
         uint balance = ERC20Basic(GNT).balanceOf(this);
-        require(balance > totalSupply);
+        require(balance > totalSupply_);
 
-        uint freshGNTW = balance - totalSupply;
-        totalSupply += freshGNTW;
+        uint freshGNTW = balance - totalSupply_;
+        totalSupply_ += freshGNTW;
         balances[msg.sender] += freshGNTW;
         Transfer(address(this), msg.sender, freshGNTW);
-    }
-
-    function transfer(address _to,
-                      uint256 _amount) returns (bool success) {
-        if (_to == address(this)) {
-            withdrawGNT(_amount);   // convert back to GNT
-            return true;
-        } else {
-            bytes empty;
-            return Token.transfer(_to, _amount, empty);     // standard transfer
-        }
-    }
-
-    function transfer(address _to,
-                      uint256 _amount,
-                      bytes _data) returns (bool success) {
-        if (_to == address(this)) {
-            withdrawGNT(_amount);   // convert back to GNT
-            return true;
-        } else {
-            return Token.transfer(_to, _amount, _data);  // standard transfer
-        }
-    }
-
-    function transferFrom(address _from,
-                          address _to,
-                          uint256 _amount) returns (bool success) {
-        require(_to != address(this));        // not supported
-        return Token.transferFrom(_from, _to, _amount);
-    }
-
-    // This function allows batch payments using sent value and
-    // sender's balance.
-    // Opcode estimation:
-    // Cost: 21000 + 2000 + 5000 + (20000 + 5000) * n
-    // 2000 - arithmetics
-    // 5000 - balance update at the end
-    // 20000 - pesimistic case of balance update in the loop
-    // 5000 - arithmetics + event in the loop
-    function batchTransfer(bytes32[] payments, uint64 closureTime) external {
-        require( block.timestamp >= closureTime);
-
-        uint balance = balances[msg.sender];
-
-        for (uint i = 0; i < payments.length; ++i) {
-            // A payment contains compressed data:
-            // first 96 bits (12 bytes) is a value,
-            // following 160 bits (20 bytes) is an address.
-            bytes32 payment = payments[i];
-            address addr = address(payment);
-            uint v = uint(payment) / 2**160;
-            require(v <= balance);
-            balances[addr] += v;
-            balance -= v;
-            BatchTransfer(msg.sender, addr, v, closureTime);
-        }
-
-        balances[msg.sender] = balance;
     }
 
     function withdrawGNT(uint amount) internal {
         require(balances[msg.sender] >= amount);
 
         balances[msg.sender] -= amount;
-        totalSupply -= amount;
+        totalSupply_ -= amount;
         Transfer(msg.sender, address(this), amount);
 
         ERC20Basic(GNT).transfer(msg.sender, amount);
