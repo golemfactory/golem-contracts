@@ -4,6 +4,7 @@
 pragma solidity ^0.4.19;
 
 import "./open_zeppelin/ERC20Basic.sol";
+import "./open_zeppelin/BasicToken.sol";
 
 /// The Gate is a contract with unique address to allow a token holder
 /// (called "User") to transfer tokens from original Token to the Proxy.
@@ -52,12 +53,9 @@ contract Gate {
 ///
 /// In the step 3 the User's tokens are going to be moved from the Gate to
 /// the User's balance in the Proxy.
-contract TokenProxy {
+contract TokenProxy is BasicToken {
 
     ERC20Basic public TOKEN;
-
-    uint256 public totalSupply;
-    mapping(address => uint256) private balances;
 
     mapping(address => address) private gates;
 
@@ -106,7 +104,7 @@ contract TokenProxy {
 
         // Handle the information about the amount of migrated tokens.
         // This is a trusted information becase it comes from the Gate.
-        totalSupply += value;
+        totalSupply_ += value;
         balances[user] += value;
 
         Minted(user, value);
@@ -118,7 +116,7 @@ contract TokenProxy {
         require(_value <= balance);
 
         balances[msg.sender] = (balance - _value);
-        totalSupply -= _value;
+        totalSupply_ -= _value;
 
         TOKEN.transfer(user, _value);
 
