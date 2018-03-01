@@ -15,10 +15,10 @@ contract TransferableToken {
 /// TODO: Rename to MigrationGate?
 contract Gate {
     TransferableToken private TOKEN;
-    TokenProxy private PROXY;
+    address private PROXY;
 
     /// Gates are to be created by the TokenProxy.
-    function Gate(TransferableToken _token, TokenProxy _proxy) public {
+    function Gate(TransferableToken _token, address _proxy) public {
         TOKEN = _token;
         PROXY = _proxy;
     }
@@ -27,25 +27,9 @@ contract Gate {
     /// Only the Proxy can request this and should request transfer of all
     /// tokens.
     function transferToProxy(uint256 _value) public {
-        require(msg.sender == address(PROXY));
+        require(msg.sender == PROXY);
         
         require(TOKEN.transfer(PROXY, _value));
-    }
-
-    /// Close the Gate.
-    /// FIXME: Remove.
-    function close() external {
-
-        // FIXME: User is passed again to Proxy here. Bad design? Remove close().
-        PROXY.onGateClosed(msg.sender);
-
-        // Delete data before selfdestruct() to recover more gas.
-        delete TOKEN;
-        delete PROXY;
-
-        // There should not be any Ether in the Gate balance, so use the "dead"
-        // address for selfdestruct().
-        selfdestruct(0x000000000000000000000000000000000000dEaD);
     }
 }
 
@@ -130,21 +114,6 @@ contract TokenProxy {
         balances[user] += value;
         
         Minted(this, user, value, "");
-    }
-
-    /// Notification handler for a Gate to be closed.
-    function onGateClosed(address _user) external {
-        address gate = gates[_user];
-
-        // Make sure the notification comes from an exisiting Gate.
-        require(msg.sender == gate);
-
-        // Remove the entry about the Gate. Another notification from the same
-        // Gate is not possible, but this adds additional protection and
-        // recovers some gas.
-        delete gates[_user];
-
-        GateClosed(gate, _user);
     }
 
     function withdraw(uint256 _value) external {
