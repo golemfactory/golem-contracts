@@ -1,5 +1,5 @@
 // Copyright 2018 Golem Factory
-// Licensed under the GNU General Public License, Version 3.
+// Licensed under the GNU General Public License v3. See the LICENSE file.
 
 pragma solidity ^0.4.19;
 
@@ -31,7 +31,7 @@ contract Gate {
     /// tokens.
     function transferToProxy(uint256 _value) public {
         require(msg.sender == PROXY);
-        
+
         require(TOKEN.transfer(PROXY, _value));
     }
 }
@@ -69,7 +69,7 @@ contract TokenProxy {
     event GateOpened(address indexed gate, address indexed user);
 
     event Minted(address indexed to, uint256 amount);
-    
+
     event Burned(address indexed from, uint256 amount);
 
     function TokenProxy(TransferableToken _token) public {
@@ -98,21 +98,21 @@ contract TokenProxy {
 
     function transferFromGate() external {
         address user = msg.sender;
-        
+
         address gate = gates[user];
-        
+
         // Make sure the User's Gate exists.
         require(gate != 0);
-        
+
         uint256 value = TOKEN.balanceOf(gate);
-        
+
         Gate(gate).transferToProxy(value);
-        
+
         // Handle the information about the amount of migrated tokens.
         // This is a trusted information becase it comes from the Gate.
         totalSupply += value;
         balances[user] += value;
-        
+
         Minted(user, value);
     }
 
