@@ -1,3 +1,6 @@
+// Copyright 2018 Golem Factory
+// Licensed under the GNU General Public License, Version 3.
+
 pragma solidity ^0.4.19;
 
 contract TransferableToken {
