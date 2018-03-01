@@ -37,14 +37,13 @@ contract ExtendedToken is StandardToken {
         balances[msg.sender] = balance;
     }
 
-    function transferAndCall(address to, uint256 value, bytes data) external returns (bool) {
+    function transferAndCall(address to, uint256 value, bytes data) external {
       // Transfer always returns true so no need to check return value
       transfer(to, value);
 
       // No need to check whether recipient is a contract, this method is
       // supposed to used only with contract recipients
       ReceivingContract(to).onTokenReceived(msg.sender, value, data);
-      return true;
     }
 }
 
