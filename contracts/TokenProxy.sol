@@ -49,7 +49,7 @@ contract Gate {
 /// 1. Create an individual Gate for migration. The Gate address will be
 ///    reported with the GateOpened event and accessible by getGateAddress().
 /// 2. Transfer tokens to be migrated to the Gate address.
-/// 3. Execute Gate.transferToProxy() to finalize the migration.
+/// 3. Execute Proxy.transferFromGate() to finalize the migration.
 ///
 /// In the step 3 the User's tokens are going to be moved from the Gate to
 /// the User's balance in the Proxy.
@@ -62,14 +62,12 @@ contract TokenProxy {
 
     mapping(address => address) private gates;
 
+
     event GateOpened(address indexed gate, address indexed user);
-    event GateClosed(address indexed gate, address indexed user);
 
-    // Events taken from ERC777:
-    // TODO: Do you want to keep them like this?
-    event Minted(address indexed operator, address indexed to, uint256 amount, bytes operatorData);
-    event Burned(address indexed operator, address indexed from, uint256 amount, bytes userData, bytes operatorData);
-
+    event Minted(indexed to, uint256 amount);
+    
+    event Burned(address indexed from, uint256 amount);
 
     function TokenProxy(TransferableToken _token) public {
         TOKEN = _token;
@@ -96,7 +94,6 @@ contract TokenProxy {
     }
 
     function transferFromGate() external {
-        
         address user = msg.sender;
         
         address gate = gates[user];
