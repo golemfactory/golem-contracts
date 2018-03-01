@@ -68,7 +68,7 @@ contract TokenProxy {
 
     event GateOpened(address indexed gate, address indexed user);
 
-    event Minted(indexed to, uint256 amount);
+    event Minted(address indexed to, uint256 amount);
     
     event Burned(address indexed from, uint256 amount);
 
@@ -113,7 +113,7 @@ contract TokenProxy {
         totalSupply += value;
         balances[user] += value;
         
-        Minted(this, user, value, "");
+        Minted(user, value);
     }
 
     function withdraw(uint256 _value) external {
@@ -126,6 +126,6 @@ contract TokenProxy {
 
         TOKEN.transfer(user, _value);
 
-        Burned(this, user, _value, "", "");
+        Burned(user, _value);
     }
 }
