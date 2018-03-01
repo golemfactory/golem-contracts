@@ -23,19 +23,18 @@ contract Gate {
         PROXY = _proxy;
     }
 
-    function transferToProxy() public {
-        // Transfer all Gate's tokens to Proxy address.
-        uint256 balance = TOKEN.balanceOf(this);
-        require(TOKEN.transfer(PROXY, balance));
-
-        // Notify the Proxy. This will also validate the user.
-        PROXY.onTransferFromGate(msg.sender, balance);
+    /// Transfer requested amount of tokens from Gate to Proxy address.
+    /// Only the Proxy can request this and should request transfer of all
+    /// tokens.
+    function transferToProxy(uint256 _value) public {
+        require(msg.sender == address(PROXY));
+        
+        require(TOKEN.transfer(PROXY, _value));
     }
 
     /// Close the Gate.
+    /// FIXME: Remove.
     function close() external {
-        // Handle current Gate's balance.
-        transferToProxy();
 
         // FIXME: User is passed again to Proxy here. Bad design? Remove close().
         PROXY.onGateClosed(msg.sender);
@@ -83,6 +82,7 @@ contract TokenProxy {
     event GateClosed(address indexed gate, address indexed user);
 
     // Events taken from ERC777:
+    // TODO: Do you want to keep them like this?
     event Minted(address indexed operator, address indexed to, uint256 amount, bytes operatorData);
     event Burned(address indexed operator, address indexed from, uint256 amount, bytes userData, bytes operatorData);
 
@@ -111,16 +111,25 @@ contract TokenProxy {
         GateOpened(gate, user);
     }
 
-    function onTransferFromGate(address _user, uint256 _value) external {
-        // Make sure the notification comes from an exisiting Gate.
-        require(msg.sender == gates[_user]);
-
+    function transferFromGate() external {
+        
+        address user = msg.sender;
+        
+        address gate = gates[user];
+        
+        // Make sure the User's Gate exists.
+        require(gate != 0);
+        
+        uint256 value = TOKEN.balanceOf(gate);
+        
+        Gate(gate).transferToProxy(value);
+        
         // Handle the information about the amount of migrated tokens.
         // This is a trusted information becase it comes from the Gate.
-        totalSupply += _value;
-        balances[_user] += _value;
-
-        Minted(this, _user, _value, "");
+        totalSupply += value;
+        balances[user] += value;
+        
+        Minted(this, user, value, "");
     }
 
     /// Notification handler for a Gate to be closed.
