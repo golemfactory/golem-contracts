@@ -1,9 +1,9 @@
 pragma solidity ^0.4.16;
 
 import "./GolemNetworkTokenWrapped.sol";
-import "./ERC223/ERC223ReceivingContract.sol";
+import "./ReceivingContract.sol";
 
-contract GNTPaymentChannels is ERC223ReceivingContract {
+contract GNTPaymentChannels is ReceivingContract {
 
     GolemNetworkTokenWrapped public token;
 
@@ -117,28 +117,15 @@ contract GNTPaymentChannels is ERC223ReceivingContract {
     }
 
     // Fund existing channel; can be done multiple times.
-    // ERC223 receiver interface
-    function onTokenTransfer(address _from, uint _value, bytes _data)
-        onlyToken
-    {
+    function onTokenReceived(address _from, uint _value, bytes _data) {
         bytes32 channel;
         assembly {
-            channel := mload(add(_data, 32))
+          channel := mload(add(_data, 32))
         }
         PaymentChannel ch = channels[channel];
         require(_from == ch.owner);
         ch.deposited += _value;
-        Fund(ch.receiver, channel, _value); // event
-    }
-
-    // alias
-    function onTokenReceived(address _from, uint _value, bytes _data) {
-        onTokenTransfer(_from, _value, _data);
-    }
-
-    // alias
-    function tokenFallback(address _from, uint _value, bytes _data) {
-        onTokenTransfer(_from, _value, _data);
+        Fund(ch.receiver, channel, _value);
     }
 
     // Fund existing channel; can be done multiple times.
