@@ -1,9 +1,9 @@
 pragma solidity ^0.4.16;
 
 import "./GolemNetworkTokenWrapped.sol";
-import "./ERC223/ERC223ReceivingContract.sol";
+import "./ReceivingContract.sol";
 
-contract GNTDeposit is ERC223ReceivingContract {
+contract GNTDeposit is ReceivingContract {
     address public oracle;
     address public coldwallet;
     uint256 public withdrawal_delay;
@@ -86,28 +86,11 @@ contract GNTDeposit is ERC223ReceivingContract {
         Lock(msg.sender); // event
     }
 
-    // ERC-223 - below are three proposed names for the same function
-    // Send GNT using transfer(this.address, amount, channel)
-    // to this contract to deposit GNT.
-    function onTokenTransfer(address _from, uint _value, bytes _data)
-        onlyToken
-    {
+    function onTokenReceived(address _from, uint _value, bytes _data) onlyToken {
         _do_deposit(_from, _value);
     }
 
-    function onTokenReceived(address _from, uint _value, bytes _data)
-        onlyToken
-    {
-        _do_deposit(_from, _value);
-    }
-
-    function tokenFallback(address _from, uint _value, bytes _data)
-        onlyToken
-    {
-        _do_deposit(_from, _value);
-    }
-
-    // Use onTokenTransfer instead - it allows you to achieve same effect
+    // Use onTokenReceived instead - it allows you to achieve same effect
     // using one transaction instead of two!
     // Deposit GNT, using token's ERC-20 interfaces.
     function deposit(uint256 _amount)

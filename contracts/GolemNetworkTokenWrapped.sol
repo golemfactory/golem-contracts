@@ -2,8 +2,9 @@ pragma solidity ^0.4.16;
 
 import "./open_zeppelin/StandardToken.sol";
 import "./open_zeppelin/ERC20Basic.sol";
+import "./ReceivingContract.sol";
 
-contract BatchToken is StandardToken {
+contract ExtendedToken is StandardToken {
     event BatchTransfer(address indexed from, address indexed to, uint256 value,
         uint64 closureTime);
 
@@ -35,6 +36,16 @@ contract BatchToken is StandardToken {
 
         balances[msg.sender] = balance;
     }
+
+    function transferAndCall(address to, uint256 value, bytes data) external returns (bool) {
+      // Transfer always returns true so no need to check return value
+      transfer(to, value);
+
+      // No need to check whether recipient is a contract, this method is
+      // supposed to used only with contract recipients
+      ReceivingContract(to).onTokenReceived(msg.sender, value, data);
+      return true;
+    }
 }
 
 contract DepositSlot {
@@ -60,7 +71,7 @@ contract DepositSlot {
     }
 }
 
-contract GolemNetworkTokenWrapped is BatchToken {
+contract GolemNetworkTokenWrapped is ExtendedToken {
     string public constant standard = "Token 0.1";
     string public constant name = "Golem Network Token Wrapped";
     string public constant symbol = "GNTW";
@@ -103,7 +114,7 @@ contract GolemNetworkTokenWrapped is BatchToken {
         Transfer(address(this), msg.sender, freshGNTW);
     }
 
-    function withdrawGNT(uint amount) internal {
+    function withdrawGNT(uint amount) public {
         require(balances[msg.sender] >= amount);
 
         balances[msg.sender] -= amount;

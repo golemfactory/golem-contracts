@@ -103,12 +103,12 @@ def do_deposit_223(chain, gnt, gntw, cdep, owner, deposit_size):
     initial_total_deposit = gntw.call().balanceOf(cdep.address)
     initial_dep_size = cdep.call().balanceOf(owner)
     chain.wait.for_receipt(
-        gntw.transact({'from': owner}).transfer(cdep.address, deposit_size))
+        gntw.transact({'from': owner}).transferAndCall(
+            cdep.address, deposit_size, ""))
     # this one attempts to create GNTW from thin air!
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            cdep.transact({'from': owner}).onTokenReceived(owner,
-                                                           1000, ""))
+            cdep.transact({'from': owner}).onTokenReceived(owner, 1000, ""))
     total_deposit = gntw.call().balanceOf(cdep.address)
     assert total_deposit == deposit_size + initial_total_deposit
     assert deposit_size == cdep.call().balanceOf(owner) - initial_dep_size
@@ -121,8 +121,7 @@ def test_windrawGNT(chain):
     assert gntw_balance > 0
     gnt_balance = gnt.call().balanceOf(owner_addr)
     chain.wait.for_receipt(
-        gntw.transact({'from': owner_addr}).transfer(gntw.address,
-                                                     gntw_balance))
+        gntw.transact({'from': owner_addr}).withdrawGNT(gntw_balance))
     assert gntw_balance + gnt_balance == gnt.call().balanceOf(owner_addr)
     assert 0 == gntw.call().balanceOf(owner_addr)
 

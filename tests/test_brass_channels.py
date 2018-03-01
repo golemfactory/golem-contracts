@@ -223,8 +223,8 @@ def prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc):
     assert eth_utils.encode_hex(owner_addr) == \
         pc.call().getOwner(channel).lower()
     chain.wait.for_receipt(
-        gntw.transact({'from': owner_addr}).transfer(pc.address,
-                                                     half_dep, channel))
+        gntw.transact({'from': owner_addr}).transferAndCall(
+            pc.address, half_dep, channel))
     assert half_dep * 2 == pc.call().getDeposited(channel)
     return channel
 
