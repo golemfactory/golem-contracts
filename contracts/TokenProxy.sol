@@ -9,6 +9,9 @@ contract TransferableToken {
 /// The Gate is a contract with unique address to allow a token holder
 /// (called "User") to transfer tokens from original Token to the Proxy.
 ///
+/// The Gate does not know who its User is. The User-Gate relationship is
+/// managed by the Proxy.
+///
 /// TODO: Rename to MigrationGate?
 contract Gate {
     TransferableToken private TOKEN;
