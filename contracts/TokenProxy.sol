@@ -3,11 +3,8 @@
 
 pragma solidity ^0.4.19;
 
-contract TransferableToken {
-    function balanceOf(address _addr) public constant returns (uint256);
-    function transfer(address _to, uint256 _value) public returns (bool success);
-}
-
+import "./open_zeppelin/ERC20Basic.sol";
+import "./open_zeppelin/BasicToken.sol";
 
 /// The Gate is a contract with unique address to allow a token holder
 /// (called "User") to transfer tokens from original Token to the Proxy.
@@ -17,11 +14,11 @@ contract TransferableToken {
 ///
 /// TODO: Rename to MigrationGate?
 contract Gate {
-    TransferableToken private TOKEN;
+    ERC20Basic private TOKEN;
     address private PROXY;
 
     /// Gates are to be created by the TokenProxy.
-    function Gate(TransferableToken _token, address _proxy) public {
+    function Gate(ERC20Basic _token, address _proxy) public {
         TOKEN = _token;
         PROXY = _proxy;
     }
@@ -56,12 +53,9 @@ contract Gate {
 ///
 /// In the step 3 the User's tokens are going to be moved from the Gate to
 /// the User's balance in the Proxy.
-contract TokenProxy {
+contract TokenProxy is BasicToken {
 
-    TransferableToken public TOKEN;
-
-    uint256 public totalSupply;
-    mapping(address => uint256) private balances;
+    ERC20Basic public TOKEN;
 
     mapping(address => address) private gates;
 
@@ -72,7 +66,7 @@ contract TokenProxy {
 
     event Burned(address indexed from, uint256 amount);
 
-    function TokenProxy(TransferableToken _token) public {
+    function TokenProxy(ERC20Basic _token) public {
         TOKEN = _token;
     }
 
@@ -110,7 +104,7 @@ contract TokenProxy {
 
         // Handle the information about the amount of migrated tokens.
         // This is a trusted information becase it comes from the Gate.
-        totalSupply += value;
+        totalSupply_ += value;
         balances[user] += value;
 
         Minted(user, value);
@@ -122,7 +116,7 @@ contract TokenProxy {
         require(_value <= balance);
 
         balances[msg.sender] = (balance - _value);
-        totalSupply -= _value;
+        totalSupply_ -= _value;
 
         TOKEN.transfer(user, _value);
 
