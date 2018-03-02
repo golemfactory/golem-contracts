@@ -88,13 +88,13 @@ def fund_gntw(chain, addr, gnt, gntw):
     v = 10 * utils.denoms.finney
     assert v < gnt.call().balanceOf(addr)
     chain.wait.for_receipt(
-        gntw.transact({'from': addr}).createPersonalDepositAddress())
-    PDA = gntw.call().getPersonalDepositAddress(addr)
+        gntw.transact({'from': addr}).openGate())
+    PDA = gntw.call().getGateAddress(addr)
     chain.wait.for_receipt(
         gnt.transact({'from': addr}).transfer(PDA, v))
     assert v == gnt.call().balanceOf(PDA)
     chain.wait.for_receipt(
-        gntw.transact({'from': addr}).processDeposit())
+        gntw.transact({'from': addr}).transferFromGate())
     assert v == gntw.call().balanceOf(addr)
 
 
