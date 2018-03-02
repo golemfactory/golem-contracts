@@ -1,6 +1,5 @@
 import ethereum.tester as tester
 import functools
-import os
 import queue
 import random
 import time
@@ -33,11 +32,12 @@ def fund_and_finalize(chain, gnt, x):
 
 def deploy_gntw(chain, factory_addr, gnt):
     args = [gnt.address]
-    gntw, tx = chain.provider.get_or_deploy_contract('GolemNetworkTokenWrapped',
-                                                     deploy_transaction={
-                                                         'from': factory_addr
-                                                     },
-                                                     deploy_args=args)
+    # TODO: Rename names *gntw to *gntb.
+    gntw, tx = chain.provider.get_or_deploy_contract(
+        'GolemNetworkTokenBatching',
+        deploy_transaction={'from': factory_addr},
+        deploy_args=args
+    )
     gas = chain.wait.for_receipt(tx)
     return gntw, gas
 
@@ -47,13 +47,13 @@ def fund_gntw(chain, gnt, gntw):
         v = 10 * utils.denoms.finney
         assert v < gnt.call().balanceOf(addr)
         chain.wait.for_receipt(
-            gntw.transact({'from': addr}).createPersonalDepositAddress())
-        PDA = gntw.call().getPersonalDepositAddress(addr)
+            gntw.transact({'from': addr}).openGate())
+        PDA = gntw.call().getGateAddress(addr)
         chain.wait.for_receipt(
             gnt.transact({'from': addr}).transfer(PDA, v))
         assert v == gnt.call().balanceOf(PDA)
         chain.wait.for_receipt(
-            gntw.transact({'from': addr}).processDeposit())
+            gntw.transact({'from': addr}).transferFromGate())
         assert v == gntw.call().balanceOf(addr)
 
 
@@ -121,7 +121,7 @@ def test_windrawGNT(chain):
     assert gntw_balance > 0
     gnt_balance = gnt.call().balanceOf(owner_addr)
     chain.wait.for_receipt(
-        gntw.transact({'from': owner_addr}).withdrawGNT(gntw_balance))
+        gntw.transact({'from': owner_addr}).withdraw(gntw_balance))
     assert gntw_balance + gnt_balance == gnt.call().balanceOf(owner_addr)
     assert 0 == gntw.call().balanceOf(owner_addr)
 

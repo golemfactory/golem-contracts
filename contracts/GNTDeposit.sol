@@ -1,6 +1,6 @@
 pragma solidity ^0.4.16;
 
-import "./GolemNetworkTokenWrapped.sol";
+import "./open_zeppelin/ERC20.sol";
 import "./ReceivingContract.sol";
 
 contract GNTDeposit is ReceivingContract {
@@ -8,7 +8,7 @@ contract GNTDeposit is ReceivingContract {
     address public coldwallet;
     uint256 public withdrawal_delay;
 
-    GolemNetworkTokenWrapped public token;
+    ERC20 public token;
     // owner => amount
     mapping (address => uint256) public balances;
     // owner => timestamp after which withdraw is possible
@@ -24,11 +24,11 @@ contract GNTDeposit is ReceivingContract {
     event ReimburseForNoPayment(address indexed _requestor, address indexed _provider, uint256 _amount, uint256 _closure_time);
     event ReimburseForVerificationCosts(address indexed _from, uint256 _amount, bytes32 _subtask_id);
 
-    function GNTDeposit(address _token,
+    function GNTDeposit(ERC20 _token,
                         address _oracle,
                         address _coldwallet,
-                        uint256 _withdrawal_delay) {
-        token = GolemNetworkTokenWrapped(_token);
+                        uint256 _withdrawal_delay) public {
+        token = _token;
         oracle = _oracle;
         coldwallet = _coldwallet;
         withdrawal_delay = _withdrawal_delay;
@@ -86,7 +86,7 @@ contract GNTDeposit is ReceivingContract {
         Lock(msg.sender); // event
     }
 
-    function onTokenReceived(address _from, uint _value, bytes _data) onlyToken {
+    function onTokenReceived(address _from, uint _value, bytes _data) public onlyToken {
         _do_deposit(_from, _value);
     }
 
