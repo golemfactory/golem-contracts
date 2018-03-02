@@ -1,11 +1,10 @@
 pragma solidity ^0.4.16;
 
-import "./GolemNetworkTokenWrapped.sol";
-import "./ReceivingContract.sol";
+import "./GolemNetworkTokenBatching.sol";
 
 contract GNTPaymentChannels is ReceivingContract {
 
-    GolemNetworkTokenWrapped public token;
+    GolemNetworkTokenBatching public token;
 
     struct PaymentChannel {
         address owner;
@@ -31,7 +30,7 @@ contract GNTPaymentChannels is ReceivingContract {
 
     function GNTPaymentChannels(address _token, uint256 _close_delay)
         public {
-        token = GolemNetworkTokenWrapped(_token);
+        token = GolemNetworkTokenBatching(_token);
         id = 0;
         close_delay = _close_delay;
     }
