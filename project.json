@@ -70,12 +70,12 @@
       },
      "web3": {
         "eth": {
-            "default_account": "0xfa55c1cb0613f0c3Dfc90240528C20375Ac9c064"
+            "default_account": "0xa5f3cd35385755e64b47f20a5d7334d7013f8015"
         },
         "provider": {
             "class": "web3.providers.ipc.IPCProvider",
             "settings": {
-                "ipc_path": "/home/pawel/.ethereum/rinkeby/geth.ipc"
+                "ipc_path": "/home/admin_imapp/.ethereum/rinkeby/geth.ipc"
             }
         }
       }

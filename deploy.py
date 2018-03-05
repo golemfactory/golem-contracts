@@ -2,6 +2,7 @@
 
 A simple Python script to deploy contracts and then do a smoke test for them.
 """
+import time
 import click
 from populus import Project
 from populus.utils.wait import wait_for_transaction_receipt
@@ -33,7 +34,7 @@ def deploy_tgnt(chain, owner, migration_addr, start, finish):
     print("GolemNetworkToken deployment args: {}".format(args))
     Token = chain.provider.get_contract_factory('GolemNetworkToken')
     txhash = Token.deploy(transaction={'from': owner}, args=args)
-    receipt = check_succesful_tx(chain.web3, txhash, timeout=300)
+    receipt = check_successful_tx(chain.web3, txhash, timeout=300)
     token_address = receipt['contractAddress']
     tgnt = Token(address=token_address)
     chain.wait.for_block(block_number=start+1)
@@ -52,12 +53,14 @@ def rinkeby_fund_and_finalize(chain, tgnt, owner):
         assert tgnt.call().funding()
         assert tgnt.call().tokenCreationRate() == 10000000000
         assert v < chain.web3.eth.getBalance(owner)
-        chain.wait.for_receipt(
-            tgnt.transact({'value': v, 'from': owner}).create())
+        check_successful_tx(
+            chain.web3,
+            tgnt.transact({'value': v, 'from': owner}).create(),
+        )
     else:
         print("tGNT already funded")
     if(tgnt.call().funding()):
-        chain.wait.for_receipt(
+        check_successful_tx(chain.web3,
             tgnt.transact().finalize())
         print("Funding finalized")
     else:
@@ -65,7 +68,7 @@ def rinkeby_fund_and_finalize(chain, tgnt, owner):
 
 
 def deploy_gntw(chain_name, chain, gnt, owner):
-    GNTW = chain.provider.get_contract_factory('GolemNetworkTokenWrapped')
+    GNTW = chain.provider.get_contract_factory('GolemNetworkTokenBatching')
     # if chain_name == "rinkeby":
     #     gntw_address = "0x584d53B8C2D0d0d7e27815D8482df8c96a8CD32D"
     #     gntw = GNTW(address=gntw_address)
@@ -76,10 +79,10 @@ def deploy_gntw(chain_name, chain, gnt, owner):
     args = [gnt.address]
     print("GNTW deployment args: {}".format(args))
     txhash = GNTW.deploy(transaction={'from': owner}, args=args)
-    receipt = check_succesful_tx(chain.web3, txhash, timeout=300)
+    receipt = check_successful_tx(chain.web3, txhash, timeout=300)
     token_address = receipt['contractAddress']
     gntw = GNTW(address=token_address)
-    assert "GNTW" == gntw.call().symbol()
+    assert "GNTB" == gntw.call().symbol()
     print("GNTW deployed")
     return gntw
 
@@ -87,14 +90,14 @@ def deploy_gntw(chain_name, chain, gnt, owner):
 def fund_gntw(chain, addr, gnt, gntw):
     v = 10 * utils.denoms.finney
     assert v < gnt.call().balanceOf(addr)
-    chain.wait.for_receipt(
-        gntw.transact({'from': addr}).openGate())
-    PDA = gntw.call().getGateAddress(addr)
-    chain.wait.for_receipt(
+    check_successful_tx(chain.web3,
+        gntw.transact({'from': addr}).createPersonalDepositAddress())
+    PDA = gntw.call().getPersonalDepositAddress(addr)
+    check_successful_tx(chain.web3,
         gnt.transact({'from': addr}).transfer(PDA, v))
     assert v == gnt.call().balanceOf(PDA)
-    chain.wait.for_receipt(
-        gntw.transact({'from': addr}).transferFromGate())
+    check_successful_tx(chain.web3,
+        gntw.transact({'from': addr}).processDeposit())
     assert v == gntw.call().balanceOf(addr)
 
 
@@ -122,7 +125,7 @@ def deploy_oraclized_deposit(chain_name, chain, owner, consent, coldwallet, gntw
     args = [gntw.address, consent, coldwallet, delay]
     print("deploying GNTDeposit: {}".format(args))
     txhash = CDEP.deploy(transaction={'from': owner}, args=args)
-    receipt = check_succesful_tx(chain.web3, txhash, timeout=300)
+    receipt = check_successful_tx(chain.web3, txhash, timeout=300)
     cdep_address = receipt['contractAddress']
     cdep = CDEP(address=cdep_address)
     return cdep
@@ -139,7 +142,7 @@ def channels(chain_name, chain, gntw, owner):
     #     return chan
     print("GNTPaymentChannels deployment args: {}".format(args))
     txhash = CHAN.deploy(transaction={'from': owner}, args=args)
-    receipt = check_succesful_tx(chain.web3, txhash, timeout=300)
+    receipt = check_successful_tx(chain.web3, txhash, timeout=300)
     chan_address = receipt['contractAddress']
     chan = CHAN(address=chan_address)
     return chan
@@ -156,7 +159,7 @@ def faucet(chain_name, chain, gnt, owner):
     #     return fct
     print("Faucet deployment args: {}".format(args))
     txhash = FCT.deploy(transaction={'from': owner}, args=args)
-    receipt = check_succesful_tx(chain.web3, txhash, timeout=300)
+    receipt = check_successful_tx(chain.web3, txhash, timeout=300)
     fct_address = receipt['contractAddress']
     chan = FCT(address=fct_address)
     print("Faucet deployed")
@@ -167,7 +170,7 @@ def move_gnt_to_faucet(chain, owner, gnt, fct):
     balance = gnt.call().balanceOf(owner)
     if (balance > 0):
         print("There is some tGNT to move...")
-        chain.wait.for_receipt(
+        check_successful_tx(chain.web3,
             gnt.transact({'from': owner}).transfer(fct.address, balance))
         print("Done! Moved {} tGNT".format(balance))
     else:
@@ -213,13 +216,17 @@ def params_check(accs):
     assert all_none or all_set, msg
 
 
-def check_succesful_tx(web3, txid, timeout=180):
+def check_successful_tx(web3, txid, timeout=180):
     """See if transaction went through (Solidity code did not throw).
 
     :return: Transaction receipt
     """
     # http://ethereum.stackexchange.com/q/6007/620
-    receipt = wait_for_transaction_receipt(web3, txid, timeout=timeout)
+    for _ in range(30):
+        try:
+            receipt = wait_for_transaction_receipt(web3, txid, timeout=timeout)
+        except ValueError:
+            time.sleep(2)
     txinfo = web3.eth.getTransaction(txid)
 
     # EVM has only one error mode and it's consume all gas
