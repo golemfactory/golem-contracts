@@ -1,5 +1,6 @@
 import ethereum.tester as tester
 import functools
+import os
 import queue
 import random
 import time
@@ -32,12 +33,11 @@ def fund_and_finalize(chain, gnt, x):
 
 def deploy_gntw(chain, factory_addr, gnt):
     args = [gnt.address]
-    # TODO: Rename names *gntw to *gntb.
-    gntw, tx = chain.provider.get_or_deploy_contract(
-        'GolemNetworkTokenBatching',
-        deploy_transaction={'from': factory_addr},
-        deploy_args=args
-    )
+    gntw, tx = chain.provider.get_or_deploy_contract('GolemNetworkTokenBatching',
+                                                     deploy_transaction={
+                                                         'from': factory_addr
+                                                     },
+                                                     deploy_args=args)
     gas = chain.wait.for_receipt(tx)
     return gntw, gas
 
@@ -83,22 +83,6 @@ def mysetup(chain):
     return user, oracle, gnt, gntw, cdep
 
 
-def do_deposit_20(chain, gnt, gntw, cdep, owner, deposit_size):
-    initial_total_deposit = gntw.call().balanceOf(cdep.address)
-    initial_dep_size = cdep.call().balanceOf(owner)
-    chain.wait.for_receipt(
-        gntw.transact({'from': owner}).approve(cdep.address, deposit_size))
-    assert deposit_size == gntw.call().allowance(owner, cdep.address)
-    assert deposit_size < gntw.call().balanceOf(owner)
-    chain.wait.for_receipt(
-        cdep.transact({'from': owner}).deposit(deposit_size))
-    assert deposit_size != gntw.call().allowance(owner, cdep.address)
-    total_deposit = gntw.call().balanceOf(cdep.address)
-    assert total_deposit == deposit_size + initial_total_deposit
-    assert deposit_size == cdep.call().balanceOf(owner) - initial_dep_size
-    assert cdep.call().isLocked(owner)
-
-
 def do_deposit_223(chain, gnt, gntw, cdep, owner, deposit_size):
     initial_total_deposit = gntw.call().balanceOf(cdep.address)
     initial_dep_size = cdep.call().balanceOf(owner)
@@ -130,8 +114,7 @@ def test_timelocks(chain):
     attacker = tester.accounts[1]
     owner, _, gnt, gntw, cdep = mysetup(chain)
     deposit_size = 100000
-    do_deposit_20(chain, gnt, gntw, cdep, owner, int(deposit_size / 2))
-    do_deposit_223(chain, gnt, gntw, cdep, owner, int(deposit_size / 2))
+    do_deposit_223(chain, gnt, gntw, cdep, owner, deposit_size)
     amnt = gntw.call().balanceOf(cdep.address)
     owner_deposit = cdep.call().balanceOf(owner)
     chain.wait.for_receipt(
@@ -173,8 +156,7 @@ def test_burn(chain):
     owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
     deposit_size = 100000
     half_dep = int(deposit_size / 2)
-    do_deposit_20(chain, gnt, gntw, cdep, owner_addr, half_dep)
-    do_deposit_223(chain, gnt, gntw, cdep, owner_addr, half_dep)
+    do_deposit_223(chain, gnt, gntw, cdep, owner_addr, deposit_size)
     amnt = gntw.call().balanceOf(cdep.address)
     # not oracle
     with pytest.raises(TransactionFailed):
@@ -195,8 +177,7 @@ def test_reimburse(chain):
     closure_time = 2137
     deposit_size = 100000
     half_dep = int(deposit_size / 2)
-    do_deposit_20(chain, gnt, gntw, cdep, owner_addr, half_dep)
-    do_deposit_223(chain, gnt, gntw, cdep, owner_addr, half_dep)
+    do_deposit_223(chain, gnt, gntw, cdep, owner_addr, deposit_size)
     amnt = gntw.call().balanceOf(cdep.address)
     assert amnt == gntw.call().balanceOf(cdep.address)
 

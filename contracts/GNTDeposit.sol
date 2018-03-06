@@ -13,7 +13,7 @@ contract GNTDeposit is ReceivingContract {
     mapping (address => uint256) public balances;
     // owner => timestamp after which withdraw is possible
     //        | 0 if locked
-    mapping (address =>  uint256) public locked_until;
+    mapping (address => uint256) public locked_until;
 
     event Deposit(address indexed _owner, uint256 _amount);
     event Withdraw(address indexed _from, address indexed _to, uint256 _amount);
@@ -24,10 +24,14 @@ contract GNTDeposit is ReceivingContract {
     event ReimburseForNoPayment(address indexed _requestor, address indexed _provider, uint256 _amount, uint256 _closure_time);
     event ReimburseForVerificationCosts(address indexed _from, uint256 _amount, bytes32 _subtask_id);
 
-    function GNTDeposit(ERC20 _token,
-                        address _oracle,
-                        address _coldwallet,
-                        uint256 _withdrawal_delay) public {
+    function GNTDeposit(
+        ERC20 _token,
+        address _oracle,
+        address _coldwallet,
+        uint256 _withdrawal_delay
+    )
+        public
+    {
         token = _token;
         oracle = _oracle;
         coldwallet = _coldwallet;
@@ -66,8 +70,7 @@ contract GNTDeposit is ReceivingContract {
     }
 
     function isUnlocked(address _owner) public view returns (bool) {
-        return ((locked_until[_owner] != 0) &&
-                (locked_until[_owner] < block.timestamp));
+        return locked_until[_owner] != 0 && locked_until[_owner] < block.timestamp;
     }
 
     function getTimelock(address _owner) external view returns (uint256) {
@@ -78,35 +81,20 @@ contract GNTDeposit is ReceivingContract {
 
     function unlock() external {
         locked_until[msg.sender] = block.timestamp + withdrawal_delay;
-        Unlock(msg.sender); // event
+        Unlock(msg.sender);
     }
 
     function lock() external {
         locked_until[msg.sender] = 0;
-        Lock(msg.sender); // event
+        Lock(msg.sender);
     }
 
-    function onTokenReceived(address _from, uint _value, bytes _data) public onlyToken {
-        _do_deposit(_from, _value);
+    function onTokenReceived(address _from, uint _amount, bytes /* _data */) public onlyToken {
+        balances[_from] += _amount;
+        Deposit(_from, _amount);
     }
 
-    // Use onTokenReceived instead - it allows you to achieve same effect
-    // using one transaction instead of two!
-    // Deposit GNT, using token's ERC-20 interfaces.
-    function deposit(uint256 _amount)
-        external
-        returns (bool)
-    {
-        if (token.transferFrom(msg.sender, address(this), _amount)) {
-            return _do_deposit(msg.sender, _amount);
-        }
-        return false;
-    }
-
-    function withdraw(address _to)
-        onlyUnlocked
-        external
-    {
+    function withdraw(address _to) onlyUnlocked external {
         var _amount = balances[msg.sender];
         balances[msg.sender] = 0;
         locked_until[msg.sender] = 0;
@@ -114,15 +102,17 @@ contract GNTDeposit is ReceivingContract {
         Withdraw(msg.sender, _to, _amount);
     }
 
-    function burn(address _whom, uint256 _burn)
-        onlyOracle
-        external
-    {
+    function burn(address _whom, uint256 _burn) onlyOracle external {
         _reimburse(_whom, 0xdeadbeef, _burn);
         Burn(_whom, _burn);
     }
 
-    function reimburseForSubtask(address _requestor, address _provider, uint256 _amount, bytes32 _subtask_id)
+    function reimburseForSubtask(
+        address _requestor,
+        address _provider,
+        uint256 _amount,
+        bytes32 _subtask_id
+    )
         onlyOracle
         external
     {
@@ -130,7 +120,12 @@ contract GNTDeposit is ReceivingContract {
         ReimburseForSubtask(_requestor, _provider, _amount, _subtask_id);
     }
 
-    function reimburseForNoPayment(address _requestor, address _provider, uint256 _amount, uint256 _closure_time)
+    function reimburseForNoPayment(
+        address _requestor,
+        address _provider,
+        uint256 _amount,
+        uint256 _closure_time
+    )
         onlyOracle
         external
     {
@@ -138,27 +133,21 @@ contract GNTDeposit is ReceivingContract {
         ReimburseForNoPayment(_requestor, _provider, _amount, _closure_time);
     }
 
-    function reimburseForVerificationCosts(address _from, uint256 _amount, bytes32 _subtask_id)
+    function reimburseForVerificationCosts(
+        address _from,
+        uint256 _amount,
+        bytes32 _subtask_id
+    )
         onlyOracle
         external
     {
         _reimburse(_from, coldwallet, _amount);
         ReimburseForVerificationCosts(_from, _amount, _subtask_id);
     }
+
     // internals
 
-    function _do_deposit(address _owner, uint _amount)
-        private
-        returns (bool)
-    {
-        balances[_owner] += _amount;
-        Deposit(_owner, _amount); // event
-        return true;
-    }
-
-    function _reimburse(address _from, address _to, uint256 _amount)
-        private
-    {
+    function _reimburse(address _from, address _to, uint256 _amount) private {
         require(balances[_from] >= _amount);
         balances[_from] -= _amount;
         if (balances[_from] == 0) {
