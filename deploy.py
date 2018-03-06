@@ -67,62 +67,62 @@ def rinkeby_fund_and_finalize(chain, tgnt, owner):
         print("Funding already finalized")
 
 
-def deploy_gntw(chain_name, chain, gnt, owner):
-    GNTW = chain.provider.get_contract_factory('GolemNetworkTokenBatching')
+def deploy_gntb(chain_name, chain, gnt, owner):
+    GNTB = chain.provider.get_contract_factory('GolemNetworkTokenBatching')
     # if chain_name == "rinkeby":
-    #     gntw_address = "0x584d53B8C2D0d0d7e27815D8482df8c96a8CD32D"
-    #     gntw = GNTW(address=gntw_address)
-    #     assert "GNTW" == gntw.call().symbol()
-    #     assert gnt.address == gntw.call().GNT()
-    #     print("GNTW already deployed!: {}".format(gntw_address))
-    #     return gntw
+    #     gntb_address = "0x584d53B8C2D0d0d7e27815D8482df8c96a8CD32D"
+    #     gntb = GNTB(address=gntb_address)
+    #     assert "GNTB" == gntb.call().symbol()
+    #     assert gnt.address == gntb.call().GNT()
+    #     print("GNTB already deployed!: {}".format(gntb_address))
+    #     return gntb
     args = [gnt.address]
-    print("GNTW deployment args: {}".format(args))
-    txhash = GNTW.deploy(transaction={'from': owner}, args=args)
+    print("GNTB deployment args: {}".format(args))
+    txhash = GNTB.deploy(transaction={'from': owner}, args=args)
     receipt = check_successful_tx(chain.web3, txhash, timeout=300)
     token_address = receipt['contractAddress']
-    gntw = GNTW(address=token_address)
-    assert "GNTB" == gntw.call().symbol()
-    print("GNTW deployed")
-    return gntw
+    gntb = GNTB(address=token_address)
+    assert "GNTB" == gntb.call().symbol()
+    print("GNTB deployed")
+    return gntb
 
 
-def fund_gntw(chain, addr, gnt, gntw):
+def fund_gntb(chain, addr, gnt, gntb):
     v = 10 * utils.denoms.finney
     assert v < gnt.call().balanceOf(addr)
     check_successful_tx(chain.web3,
-        gntw.transact({'from': addr}).createPersonalDepositAddress())
-    PDA = gntw.call().getPersonalDepositAddress(addr)
+        gntb.transact({'from': addr}).createPersonalDepositAddress())
+    PDA = gntb.call().getPersonalDepositAddress(addr)
     check_successful_tx(chain.web3,
         gnt.transact({'from': addr}).transfer(PDA, v))
     assert v == gnt.call().balanceOf(PDA)
     check_successful_tx(chain.web3,
-        gntw.transact({'from': addr}).processDeposit())
-    assert v == gntw.call().balanceOf(addr)
+        gntb.transact({'from': addr}).processDeposit())
+    assert v == gntb.call().balanceOf(addr)
 
 
-def oraclized_deposit(chain_name, chain, owner, consent, coldwallet, gntw, delay):
+def oraclized_deposit(chain_name, chain, owner, consent, coldwallet, gntb, delay):
     cdep = deploy_oraclized_deposit(chain_name, chain, owner, consent,
-                                    coldwallet, gntw, delay)
-    check_oraclized_deposit(cdep, gntw, consent, coldwallet, delay)
+                                    coldwallet, gntb, delay)
+    check_oraclized_deposit(cdep, gntb, consent, coldwallet, delay)
     return cdep
 
 
-def check_oraclized_deposit(cdep, gntw, consent, coldwallet, delay):
-    assert gntw.address.lower() == cdep.call().token().lower()
+def check_oraclized_deposit(cdep, gntb, consent, coldwallet, delay):
+    assert gntb.address.lower() == cdep.call().token().lower()
     assert consent.lower() == cdep.call().oracle().lower()
     assert coldwallet.lower() == cdep.call().coldwallet().lower()
     assert delay == cdep.call().withdrawal_delay()
 
 
-def deploy_oraclized_deposit(chain_name, chain, owner, consent, coldwallet, gntw, delay):
+def deploy_oraclized_deposit(chain_name, chain, owner, consent, coldwallet, gntb, delay):
     CDEP = chain.provider.get_contract_factory('GNTDeposit')
     # if (chain_name == "rinkeby"):
     #     cdep_address = "0x7047c04EB5337bf4fD7033B24d411D50b57feb5C"
     #     cdep = CDEP(address=cdep_address)
     #     print("GNTDeposit already deployed!: {}".format(cdep_address))
     #     return cdep
-    args = [gntw.address, consent, coldwallet, delay]
+    args = [gntb.address, consent, coldwallet, delay]
     print("deploying GNTDeposit: {}".format(args))
     txhash = CDEP.deploy(transaction={'from': owner}, args=args)
     receipt = check_successful_tx(chain.web3, txhash, timeout=300)
@@ -131,13 +131,13 @@ def deploy_oraclized_deposit(chain_name, chain, owner, consent, coldwallet, gntw
     return cdep
 
 
-def channels(chain_name, chain, gntw, owner):
+def channels(chain_name, chain, gntb, owner):
     CHAN = chain.provider.get_contract_factory('GNTPaymentChannels')
-    args = [gntw.address, lock_time()]
+    args = [gntb.address, lock_time()]
     # if (chain_name == "rinkeby"):
     #     chan_address = "0xB38e0edEf675ABBf539680b2c2c43eAf8d8dc4ff"
     #     chan = CHAN(address=chan_address)
-    #     assert gntw.address.lower() == chan.call().token()
+    #     assert gntb.address.lower() == chan.call().token()
     #     print("GNTPaymentChannels already deployed!: {}".format(chan_address))
     #     return chan
     print("GNTPaymentChannels deployment args: {}".format(args))
@@ -181,15 +181,15 @@ def deploy_all_the_things(chain_name, chain, gnt, owner, consent, coldwallet):
     fct = faucet(chain_name, chain, gnt, owner)
     print("Faucet address", fct.address)
     move_gnt_to_faucet(chain, owner, gnt, fct)
-    gntw = deploy_gntw(chain_name, chain, gnt, owner)
-    print("GNTW address", gntw.address)
-    # fund_gntw(chain, owner, gnt, gntw)
+    gntb = deploy_gntb(chain_name, chain, gnt, owner)
+    print("GNTB address", gntb.address)
+    # fund_gntb(chain, owner, gnt, gntb)
     cdep = oraclized_deposit(chain_name, chain, owner, consent,
-                             coldwallet, gntw, lock_time())
+                             coldwallet, gntb, lock_time())
     print("GNTDeposit", cdep.address)
-    channels_ctr = channels(chain_name, chain, gntw, owner)
+    channels_ctr = channels(chain_name, chain, gntb, owner)
     print("GNTPaymentChannels", channels_ctr.address)
-    return gntw, cdep
+    return gntb, cdep
 
 
 def lock_time():

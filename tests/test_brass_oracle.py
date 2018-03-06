@@ -31,30 +31,30 @@ def fund_and_finalize(chain, gnt, x):
     assert not gnt.call().funding()
 
 
-def deploy_gntw(chain, factory_addr, gnt):
+def deploy_gntb(chain, factory_addr, gnt):
     args = [gnt.address]
-    gntw, tx = chain.provider.get_or_deploy_contract('GolemNetworkTokenBatching',
+    gntb, tx = chain.provider.get_or_deploy_contract('GolemNetworkTokenBatching',
                                                      deploy_transaction={
                                                          'from': factory_addr
                                                      },
                                                      deploy_args=args)
     gas = chain.wait.for_receipt(tx)
-    return gntw, gas
+    return gntb, gas
 
 
-def fund_gntw(chain, gnt, gntw):
+def fund_gntb(chain, gnt, gntb):
     for i, addr in enumerate(tester.accounts[:10]):
         v = 10 * utils.denoms.finney
         assert v < gnt.call().balanceOf(addr)
         chain.wait.for_receipt(
-            gntw.transact({'from': addr}).openGate())
-        PDA = gntw.call().getGateAddress(addr)
+            gntb.transact({'from': addr}).openGate())
+        PDA = gntb.call().getGateAddress(addr)
         chain.wait.for_receipt(
             gnt.transact({'from': addr}).transfer(PDA, v))
         assert v == gnt.call().balanceOf(PDA)
         chain.wait.for_receipt(
-            gntw.transact({'from': addr}).transferFromGate())
-        assert v == gntw.call().balanceOf(addr)
+            gntb.transact({'from': addr}).transferFromGate())
+        assert v == gntb.call().balanceOf(addr)
 
 
 def deploy_oraclized_deposit(chain, factory_addr, token, delay):
@@ -75,47 +75,47 @@ def mysetup(chain):
     bn = chain.web3.eth.blockNumber
     start, finish = bn+2, bn+11
     gnt = deploy_gnt(chain, factory, factory, start, finish)
-    gntw, gas = deploy_gntw(chain, factory, gnt)
-    print("GNTW deployment cost: {}".format(gas['gasUsed']))
-    fund_gntw(chain, gnt, gntw)
-    cdep, gas = deploy_oraclized_deposit(chain, oracle, gntw, lock_time())
+    gntb, gas = deploy_gntb(chain, factory, gnt)
+    print("GNTB deployment cost: {}".format(gas['gasUsed']))
+    fund_gntb(chain, gnt, gntb)
+    cdep, gas = deploy_oraclized_deposit(chain, oracle, gntb, lock_time())
     print("GNTDeposit deployment cost: {}".format(gas['gasUsed']))
-    return user, oracle, gnt, gntw, cdep
+    return user, oracle, gnt, gntb, cdep
 
 
-def do_deposit_223(chain, gnt, gntw, cdep, owner, deposit_size):
-    initial_total_deposit = gntw.call().balanceOf(cdep.address)
+def do_deposit_223(chain, gnt, gntb, cdep, owner, deposit_size):
+    initial_total_deposit = gntb.call().balanceOf(cdep.address)
     initial_dep_size = cdep.call().balanceOf(owner)
     chain.wait.for_receipt(
-        gntw.transact({'from': owner}).transferAndCall(
+        gntb.transact({'from': owner}).transferAndCall(
             cdep.address, deposit_size, ""))
-    # this one attempts to create GNTW from thin air!
+    # this one attempts to create GNTB from thin air!
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             cdep.transact({'from': owner}).onTokenReceived(owner, 1000, ""))
-    total_deposit = gntw.call().balanceOf(cdep.address)
+    total_deposit = gntb.call().balanceOf(cdep.address)
     assert total_deposit == deposit_size + initial_total_deposit
     assert deposit_size == cdep.call().balanceOf(owner) - initial_dep_size
     assert cdep.call().isLocked(owner)
 
 
 def test_windrawGNT(chain):
-    owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
-    gntw_balance = gntw.call().balanceOf(owner_addr)
-    assert gntw_balance > 0
+    owner_addr, oracle_addr, gnt, gntb, cdep = mysetup(chain)
+    gntb_balance = gntb.call().balanceOf(owner_addr)
+    assert gntb_balance > 0
     gnt_balance = gnt.call().balanceOf(owner_addr)
     chain.wait.for_receipt(
-        gntw.transact({'from': owner_addr}).withdraw(gntw_balance))
-    assert gntw_balance + gnt_balance == gnt.call().balanceOf(owner_addr)
-    assert 0 == gntw.call().balanceOf(owner_addr)
+        gntb.transact({'from': owner_addr}).withdraw(gntb_balance))
+    assert gntb_balance + gnt_balance == gnt.call().balanceOf(owner_addr)
+    assert 0 == gntb.call().balanceOf(owner_addr)
 
 
 def test_timelocks(chain):
     attacker = tester.accounts[1]
-    owner, _, gnt, gntw, cdep = mysetup(chain)
+    owner, _, gnt, gntb, cdep = mysetup(chain)
     deposit_size = 100000
-    do_deposit_223(chain, gnt, gntw, cdep, owner, deposit_size)
-    amnt = gntw.call().balanceOf(cdep.address)
+    do_deposit_223(chain, gnt, gntb, cdep, owner, deposit_size)
+    amnt = gntb.call().balanceOf(cdep.address)
     owner_deposit = cdep.call().balanceOf(owner)
     chain.wait.for_receipt(
         cdep.transact({'from': owner}).unlock())
@@ -126,60 +126,60 @@ def test_timelocks(chain):
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             cdep.transact({'from': owner}).withdraw(owner))
-    assert amnt == gntw.call().balanceOf(cdep.address)
+    assert amnt == gntb.call().balanceOf(cdep.address)
     # by wrong person
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             cdep.transact({'from': attacker}).withdraw(attacker))
-    assert amnt == gntw.call().balanceOf(cdep.address)
+    assert amnt == gntb.call().balanceOf(cdep.address)
     # successful withdrawal
     assert owner_deposit <= cdep.call().balanceOf(owner)
     while blockTimestamp(chain) < locked_until:
         chain.web3.testing.mine(1)
     assert cdep.call().isUnlocked(owner)
-    assert owner != gntw.address
-    assert gntw.call().balanceOf(cdep.address) >= cdep.call().balanceOf(owner)
+    assert owner != gntb.address
+    assert gntb.call().balanceOf(cdep.address) >= cdep.call().balanceOf(owner)
     chain.wait.for_receipt(
         cdep.transact({'from': owner}).withdraw(owner))
     assert 0 == cdep.call().balanceOf(owner)
-    assert amnt - owner_deposit == gntw.call().balanceOf(cdep.address)
+    assert amnt - owner_deposit == gntb.call().balanceOf(cdep.address)
     # unsuccessful retry
-    amnt = gntw.call().balanceOf(cdep.address)
+    amnt = gntb.call().balanceOf(cdep.address)
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             cdep.transact({'from': owner}).withdraw(owner))
     assert 0 == cdep.call().balanceOf(owner)
-    assert amnt == gntw.call().balanceOf(cdep.address)
+    assert amnt == gntb.call().balanceOf(cdep.address)
 
 
 def test_burn(chain):
-    owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
+    owner_addr, oracle_addr, gnt, gntb, cdep = mysetup(chain)
     deposit_size = 100000
     half_dep = int(deposit_size / 2)
-    do_deposit_223(chain, gnt, gntw, cdep, owner_addr, deposit_size)
-    amnt = gntw.call().balanceOf(cdep.address)
+    do_deposit_223(chain, gnt, gntb, cdep, owner_addr, deposit_size)
+    amnt = gntb.call().balanceOf(cdep.address)
     # not oracle
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             cdep.transact({'from': owner_addr}).burn(owner_addr, half_dep))
-    assert amnt == gntw.call().balanceOf(cdep.address)
+    assert amnt == gntb.call().balanceOf(cdep.address)
     # oracle
     chain.wait.for_receipt(
         cdep.transact({'from': oracle_addr}).burn(owner_addr, half_dep))
     assert amnt-half_dep == cdep.call().balanceOf(owner_addr)
-    assert amnt-half_dep == gntw.call().balanceOf(cdep.address)
+    assert amnt-half_dep == gntb.call().balanceOf(cdep.address)
 
 
 def test_reimburse(chain):
-    owner_addr, oracle_addr, gnt, gntw, cdep = mysetup(chain)
+    owner_addr, oracle_addr, gnt, gntb, cdep = mysetup(chain)
     other_addr = tester.accounts[1]
     subtask_id = "subtask_id123".zfill(32)
     closure_time = 2137
     deposit_size = 100000
     half_dep = int(deposit_size / 2)
-    do_deposit_223(chain, gnt, gntw, cdep, owner_addr, deposit_size)
-    amnt = gntw.call().balanceOf(cdep.address)
-    assert amnt == gntw.call().balanceOf(cdep.address)
+    do_deposit_223(chain, gnt, gntb, cdep, owner_addr, deposit_size)
+    amnt = gntb.call().balanceOf(cdep.address)
+    assert amnt == gntb.call().balanceOf(cdep.address)
 
     q = queue.Queue()
     cbk = functools.partial(lambda event, q: q.put(event), q=q)
@@ -194,7 +194,7 @@ def test_reimburse(chain):
                 other_addr,
                 half_dep,
                 subtask_id))
-    assert amnt == gntw.call().balanceOf(cdep.address)
+    assert amnt == gntb.call().balanceOf(cdep.address)
     assert q.empty()
 
     with pytest.raises(TransactionFailed):
@@ -204,7 +204,7 @@ def test_reimburse(chain):
                 other_addr,
                 half_dep,
                 closure_time))
-    assert amnt == gntw.call().balanceOf(cdep.address)
+    assert amnt == gntb.call().balanceOf(cdep.address)
     assert q.empty()
 
     with pytest.raises(TransactionFailed):
@@ -213,7 +213,7 @@ def test_reimburse(chain):
                 owner_addr,
                 half_dep,
                 subtask_id))
-    assert amnt == gntw.call().balanceOf(cdep.address)
+    assert amnt == gntb.call().balanceOf(cdep.address)
     assert q.empty()
 
     # oracle
@@ -231,7 +231,7 @@ def test_reimburse(chain):
     assert half_dep == event['args']['_amount']
     assert subtask_id == event['args']['_subtask_id']
     assert amnt - half_dep == cdep.call().balanceOf(owner_addr)
-    assert amnt - half_dep == gntw.call().balanceOf(cdep.address)
+    assert amnt - half_dep == gntb.call().balanceOf(cdep.address)
 
     amount = 1
     chain.wait.for_receipt(
@@ -247,7 +247,7 @@ def test_reimburse(chain):
     assert amount == event['args']['_amount']
     assert closure_time == event['args']['_closure_time']
     assert amnt - half_dep - amount == cdep.call().balanceOf(owner_addr)
-    assert amnt - half_dep - amount == gntw.call().balanceOf(cdep.address)
+    assert amnt - half_dep - amount == gntb.call().balanceOf(cdep.address)
 
     amount = half_dep - 1
     chain.wait.for_receipt(
@@ -260,7 +260,7 @@ def test_reimburse(chain):
     assert owner_addr == utils.decode_hex(event['args']['_from'][2:])
     assert amount == event['args']['_amount']
     assert 0 == cdep.call().balanceOf(owner_addr)
-    assert 0 == gntw.call().balanceOf(cdep.address)
+    assert 0 == gntb.call().balanceOf(cdep.address)
 
     assert q.empty()
 

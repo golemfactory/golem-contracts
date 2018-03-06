@@ -25,12 +25,12 @@ def encode_payments(payments):
 
 
 def test_batch_transfer(chain):
-    owner_addr, receiver_addr, gnt, gntw, cdep = mysetup(chain)
-    eba0 = gntw.call().balanceOf(ethereum.tester.a0)
-    eba1 = gntw.call().balanceOf(ethereum.tester.a1)
-    eba2 = gntw.call().balanceOf(ethereum.tester.a2)
-    eba3 = gntw.call().balanceOf(ethereum.tester.a3)
-    eba4 = gntw.call().balanceOf(ethereum.tester.a4)
+    owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    eba0 = gntb.call().balanceOf(ethereum.tester.a0)
+    eba1 = gntb.call().balanceOf(ethereum.tester.a1)
+    eba2 = gntb.call().balanceOf(ethereum.tester.a2)
+    eba3 = gntb.call().balanceOf(ethereum.tester.a3)
+    eba4 = gntb.call().balanceOf(ethereum.tester.a4)
     payments, v = encode_payments([(1, 1), (2, 2), (3, 3), (4, 4)])
 
     # This dict is used to count events for given block hash
@@ -44,18 +44,18 @@ def test_batch_transfer(chain):
         eventsQueue.put(arg)
 
     cbk = functools.partial(onBatchEvent, eventsQueue=q)
-    gntw.on('BatchTransfer', None, cbk)
+    gntb.on('BatchTransfer', None, cbk)
 
     # Closure time has to be in past, requestor is making payments for
     # already made obligations
     closure_time = chain.web3.eth.getBlock('latest')['timestamp']
 
-    tx = chain.wait.for_receipt(gntw.transact({'from': ethereum.tester.a0}).batchTransfer(payments, closure_time))
-    assert gntw.call().balanceOf(ethereum.tester.a1) == 1 + eba1
-    assert gntw.call().balanceOf(ethereum.tester.a2) == 2 + eba2
-    assert gntw.call().balanceOf(ethereum.tester.a3) == 3 + eba3
-    assert gntw.call().balanceOf(ethereum.tester.a4) == 4 + eba4
-    assert gntw.call().balanceOf(ethereum.tester.a0) == eba0 - v
+    tx = chain.wait.for_receipt(gntb.transact({'from': ethereum.tester.a0}).batchTransfer(payments, closure_time))
+    assert gntb.call().balanceOf(ethereum.tester.a1) == 1 + eba1
+    assert gntb.call().balanceOf(ethereum.tester.a2) == 2 + eba2
+    assert gntb.call().balanceOf(ethereum.tester.a3) == 3 + eba3
+    assert gntb.call().balanceOf(ethereum.tester.a4) == 4 + eba4
+    assert gntb.call().balanceOf(ethereum.tester.a0) == eba0 - v
 
     while not q.empty():
         try:

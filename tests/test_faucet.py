@@ -6,7 +6,7 @@ import rlp
 from ethereum.transactions import Transaction
 
 def test_create_gnt(chain):
-    owner_addr, receiver_addr, gnt, gntw, cdep = mysetup(chain)
+    owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
     faucet, _ = chain.provider.get_or_deploy_contract('Faucet',
                                                       deploy_args=[gnt.address])
 

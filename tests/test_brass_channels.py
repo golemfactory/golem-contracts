@@ -12,10 +12,10 @@ from eth_utils import (
 
 
 def test_close(chain):
-    owner_addr, receiver_addr, gnt, gntw, cdep = mysetup(chain)
-    pc = deploy_channels(chain, owner_addr, gntw)
-    channel = prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc)
-    prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc)
+    owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    pc = deploy_channels(chain, owner_addr, gntb)
+    channel = prep_a_channel(chain, owner_addr, receiver_addr, gntb, pc)
+    prep_a_channel(chain, owner_addr, receiver_addr, gntb, pc)
     # bad caller
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
@@ -68,11 +68,11 @@ def test_close(chain):
 
 
 def test_withdraw(chain):
-    owner_addr, _, gnt, gntw, cdep = mysetup(chain)
+    owner_addr, _, gnt, gntb, cdep = mysetup(chain)
     owner_priv = ethereum.tester.keys[7]
     receiver_addr = tester.accounts[1]
-    pc = deploy_channels(chain, owner_addr, gntw)
-    channel = prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc)
+    pc = deploy_channels(chain, owner_addr, gntb)
+    channel = prep_a_channel(chain, owner_addr, receiver_addr, gntb, pc)
 
     def capacity():
         dep = pc.call().getDeposited(channel)
@@ -80,7 +80,7 @@ def test_withdraw(chain):
         return dep - wit
 
     def shared_capacity():
-        return gntw.call().balanceOf(pc.address)
+        return gntb.call().balanceOf(pc.address)
 
     c_cap = capacity()
     sh_cap = shared_capacity()
@@ -136,9 +136,9 @@ def test_withdraw(chain):
 
 
 def test_forceClose(chain):
-    owner_addr, receiver_addr, gnt, gntw, cdep = mysetup(chain)
-    pc = deploy_channels(chain, owner_addr, gntw)
-    channel = prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc)
+    owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    pc = deploy_channels(chain, owner_addr, gntb)
+    channel = prep_a_channel(chain, owner_addr, receiver_addr, gntb, pc)
     # bad caller
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
@@ -185,7 +185,7 @@ def a2t(address):
     return eth_utils.encode_hex(utils.zpad(address, 32))
 
 
-def prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc):
+def prep_a_channel(chain, owner_addr, receiver_addr, gntb, pc):
     topics = [owner_addr, receiver_addr]
     f_id = log_filter(chain, pc.address,
                       "NewChannel(address, address, bytes32)", topics)
@@ -208,7 +208,7 @@ def prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc):
     deposit_size = 100000
     half_dep = int(deposit_size / 2)
     chain.wait.for_receipt(
-        gntw.transact({'from': owner_addr}).approve(pc.address,
+        gntb.transact({'from': owner_addr}).approve(pc.address,
                                                     half_dep * 2))
     topics = [receiver_addr, channel]
     f_id = log_filter(chain, pc.address,
@@ -223,7 +223,7 @@ def prep_a_channel(chain, owner_addr, receiver_addr, gntw, pc):
     assert eth_utils.encode_hex(owner_addr) == \
         pc.call().getOwner(channel).lower()
     chain.wait.for_receipt(
-        gntw.transact({'from': owner_addr}).transferAndCall(
+        gntb.transact({'from': owner_addr}).transferAndCall(
             pc.address, half_dep, channel))
     assert half_dep * 2 == pc.call().getDeposited(channel)
     return channel
@@ -259,8 +259,8 @@ def get_logs(f_id):
     return lf
 
 
-def deploy_channels(chain, factory_addr, gntw):
-    args = [gntw.address, seconds(600)]
+def deploy_channels(chain, factory_addr, gntb):
+    args = [gntb.address, seconds(600)]
     pc, tx = chain.provider.get_or_deploy_contract('GNTPaymentChannels',
                                                    deploy_transaction={
                                                        'from': factory_addr
