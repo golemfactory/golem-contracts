@@ -10,8 +10,6 @@ import "./open_zeppelin/StandardToken.sol";
 ///
 /// The Gate does not know who its User is. The User-Gate relationship is
 /// managed by the Proxy.
-///
-/// TODO: Rename to MigrationGate?
 contract Gate {
     ERC20Basic private TOKEN;
     address private PROXY;
