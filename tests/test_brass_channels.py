@@ -4,7 +4,7 @@ import ethereum
 import ethereum.utils as utils
 from ethereum.tester import TransactionFailed
 from secp256k1 import PrivateKey
-from test_brass_oracle import mysetup, seconds
+from test_brass_concent import mysetup, seconds
 import eth_utils
 from eth_utils import (
     event_signature_to_log_topic,

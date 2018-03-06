@@ -4,7 +4,7 @@ import "./open_zeppelin/ERC20.sol";
 import "./ReceivingContract.sol";
 
 contract GNTDeposit is ReceivingContract {
-    address public oracle;
+    address public concent;
     address public coldwallet;
     uint256 public withdrawal_delay;
 
@@ -26,14 +26,14 @@ contract GNTDeposit is ReceivingContract {
 
     function GNTDeposit(
         ERC20 _token,
-        address _oracle,
+        address _concent,
         address _coldwallet,
         uint256 _withdrawal_delay
     )
         public
     {
         token = _token;
-        oracle = _oracle;
+        concent = _concent;
         coldwallet = _coldwallet;
         withdrawal_delay = _withdrawal_delay;
     }
@@ -45,8 +45,8 @@ contract GNTDeposit is ReceivingContract {
         _;
     }
 
-    modifier onlyOracle() {
-        require(msg.sender == oracle);
+    modifier onlyConcent() {
+        require(msg.sender == concent);
         _;
     }
 
@@ -102,7 +102,7 @@ contract GNTDeposit is ReceivingContract {
         Withdraw(msg.sender, _to, _amount);
     }
 
-    function burn(address _whom, uint256 _burn) onlyOracle external {
+    function burn(address _whom, uint256 _burn) onlyConcent external {
         _reimburse(_whom, 0xdeadbeef, _burn);
         Burn(_whom, _burn);
     }
@@ -113,7 +113,7 @@ contract GNTDeposit is ReceivingContract {
         uint256 _amount,
         bytes32 _subtask_id
     )
-        onlyOracle
+        onlyConcent
         external
     {
         _reimburse(_requestor, _provider, _amount);
@@ -126,7 +126,7 @@ contract GNTDeposit is ReceivingContract {
         uint256 _amount,
         uint256 _closure_time
     )
-        onlyOracle
+        onlyConcent
         external
     {
         _reimburse(_requestor, _provider, _amount);
@@ -138,7 +138,7 @@ contract GNTDeposit is ReceivingContract {
         uint256 _amount,
         bytes32 _subtask_id
     )
-        onlyOracle
+        onlyConcent
         external
     {
         _reimburse(_from, coldwallet, _amount);

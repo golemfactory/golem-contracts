@@ -110,7 +110,7 @@ def oraclized_deposit(chain_name, chain, owner, consent, coldwallet, gntb, delay
 
 def check_oraclized_deposit(cdep, gntb, consent, coldwallet, delay):
     assert gntb.address.lower() == cdep.call().token().lower()
-    assert consent.lower() == cdep.call().oracle().lower()
+    assert consent.lower() == cdep.call().concent().lower()
     assert coldwallet.lower() == cdep.call().coldwallet().lower()
     assert delay == cdep.call().withdrawal_delay()
 

@@ -1,4 +1,4 @@
-from test_brass_oracle import mysetup
+from test_brass_concent import mysetup
 import ethereum
 from ethereum.utils import to_string, sha3, privtoaddr, encode_hex
 import ethereum.utils as utils

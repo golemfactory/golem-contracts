@@ -70,7 +70,7 @@ def deploy_oraclized_deposit(chain, factory_addr, token, delay):
 
 def mysetup(chain):
     factory = tester.accounts[9]
-    oracle = tester.accounts[8]
+    concent = tester.accounts[8]
     user = tester.accounts[7]
     bn = chain.web3.eth.blockNumber
     start, finish = bn+2, bn+11
@@ -78,9 +78,9 @@ def mysetup(chain):
     gntb, gas = deploy_gntb(chain, factory, gnt)
     print("GNTB deployment cost: {}".format(gas['gasUsed']))
     fund_gntb(chain, gnt, gntb)
-    cdep, gas = deploy_oraclized_deposit(chain, oracle, gntb, lock_time())
+    cdep, gas = deploy_oraclized_deposit(chain, concent, gntb, lock_time())
     print("GNTDeposit deployment cost: {}".format(gas['gasUsed']))
-    return user, oracle, gnt, gntb, cdep
+    return user, concent, gnt, gntb, cdep
 
 
 def do_deposit_223(chain, gnt, gntb, cdep, owner, deposit_size):
@@ -100,7 +100,7 @@ def do_deposit_223(chain, gnt, gntb, cdep, owner, deposit_size):
 
 
 def test_windrawGNT(chain):
-    owner_addr, oracle_addr, gnt, gntb, cdep = mysetup(chain)
+    owner_addr, concent_addr, gnt, gntb, cdep = mysetup(chain)
     gntb_balance = gntb.call().balanceOf(owner_addr)
     assert gntb_balance > 0
     gnt_balance = gnt.call().balanceOf(owner_addr)
@@ -153,25 +153,25 @@ def test_timelocks(chain):
 
 
 def test_burn(chain):
-    owner_addr, oracle_addr, gnt, gntb, cdep = mysetup(chain)
+    owner_addr, concent_addr, gnt, gntb, cdep = mysetup(chain)
     deposit_size = 100000
     half_dep = int(deposit_size / 2)
     do_deposit_223(chain, gnt, gntb, cdep, owner_addr, deposit_size)
     amnt = gntb.call().balanceOf(cdep.address)
-    # not oracle
+    # not concent
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             cdep.transact({'from': owner_addr}).burn(owner_addr, half_dep))
     assert amnt == gntb.call().balanceOf(cdep.address)
-    # oracle
+    # concent
     chain.wait.for_receipt(
-        cdep.transact({'from': oracle_addr}).burn(owner_addr, half_dep))
+        cdep.transact({'from': concent_addr}).burn(owner_addr, half_dep))
     assert amnt-half_dep == cdep.call().balanceOf(owner_addr)
     assert amnt-half_dep == gntb.call().balanceOf(cdep.address)
 
 
 def test_reimburse(chain):
-    owner_addr, oracle_addr, gnt, gntb, cdep = mysetup(chain)
+    owner_addr, concent_addr, gnt, gntb, cdep = mysetup(chain)
     other_addr = tester.accounts[1]
     subtask_id = "subtask_id123".zfill(32)
     closure_time = 2137
@@ -186,7 +186,7 @@ def test_reimburse(chain):
     cdep.on('ReimburseForSubtask', None, cbk)
     cdep.on('ReimburseForNoPayment', None, cbk)
     cdep.on('ReimburseForVerificationCosts', None, cbk)
-    # not oracle
+    # not concent
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             cdep.transact({'from': other_addr}).reimburseForSubtask(
@@ -216,9 +216,9 @@ def test_reimburse(chain):
     assert amnt == gntb.call().balanceOf(cdep.address)
     assert q.empty()
 
-    # oracle
+    # concent
     chain.wait.for_receipt(
-        cdep.transact({'from': oracle_addr}).reimburseForSubtask(
+        cdep.transact({'from': concent_addr}).reimburseForSubtask(
             owner_addr,
             other_addr,
             half_dep,
@@ -235,7 +235,7 @@ def test_reimburse(chain):
 
     amount = 1
     chain.wait.for_receipt(
-        cdep.transact({'from': oracle_addr}).reimburseForNoPayment(
+        cdep.transact({'from': concent_addr}).reimburseForNoPayment(
             owner_addr,
             other_addr,
             amount,
@@ -251,7 +251,7 @@ def test_reimburse(chain):
 
     amount = half_dep - 1
     chain.wait.for_receipt(
-        cdep.transact({'from': oracle_addr}).reimburseForVerificationCosts(
+        cdep.transact({'from': concent_addr}).reimburseForVerificationCosts(
             owner_addr,
             amount,
             subtask_id))

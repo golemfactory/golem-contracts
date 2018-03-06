@@ -5,7 +5,7 @@ from eth_utils import (
 )
 import functools
 import queue
-from test_brass_oracle import mysetup
+from test_brass_concent import mysetup
 
 
 def encode_payments(payments):
