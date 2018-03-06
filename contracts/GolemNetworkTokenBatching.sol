@@ -6,6 +6,13 @@ pragma solidity ^0.4.19;
 import "./ReceivingContract.sol";
 import "./TokenProxy.sol";
 
+
+/// GolemNetworkTokenBatching can be treated as an upgraded GolemNetworkToken.
+/// 1. It is fully ERC20 compliant (GNT is missing approve and transferFrom)
+/// 2. It implements slightly modified ERC677 (transferAndCall method)
+/// 3. It provides batchTransfer method - an optimized way of executing multiple transfers
+///
+/// On how to convert between GNT and GNTB see TokenProxy documentation.
 contract GolemNetworkTokenBatching is TokenProxy {
 
     string public constant name = "Golem Network Token Batching";
@@ -19,14 +26,6 @@ contract GolemNetworkTokenBatching is TokenProxy {
     function GolemNetworkTokenBatching(ERC20Basic _gntToken) TokenProxy(_gntToken) public {
     }
 
-    // This function allows batch payments using sent value and
-    // sender's balance.
-    // Opcode estimation:
-    // Cost: 21000 + 2000 + 5000 + (20000 + 5000) * n
-    // 2000 - arithmetics
-    // 5000 - balance update at the end
-    // 20000 - pesimistic case of balance update in the loop
-    // 5000 - arithmetics + event in the loop
     function batchTransfer(bytes32[] payments, uint64 closureTime) external {
         require(block.timestamp >= closureTime);
 
