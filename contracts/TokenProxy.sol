@@ -108,14 +108,18 @@ contract TokenProxy is StandardToken {
     }
 
     function withdraw(uint256 _value) external {
+      withdrawTo(_value, msg.sender);
+    }
+
+    function withdrawTo(uint256 _value, address _destination) public {
         address user = msg.sender;
         uint256 balance = balances[user];
         require(_value <= balance);
 
-        balances[msg.sender] = (balance - _value);
+        balances[user] = (balance - _value);
         totalSupply_ -= _value;
 
-        TOKEN.transfer(user, _value);
+        TOKEN.transfer(_destination, _value);
 
         Burned(user, _value);
     }

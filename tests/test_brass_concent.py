@@ -109,6 +109,18 @@ def test_windrawGNT(chain):
     assert gntb_balance + gnt_balance == gnt.call().balanceOf(owner_addr)
     assert 0 == gntb.call().balanceOf(owner_addr)
 
+def test_windrawTo(chain):
+    owner_addr, concent_addr, gnt, gntb, cdep = mysetup(chain)
+    recipient = tester.accounts[0]
+    assert owner_addr != recipient
+    gntb_balance = gntb.call().balanceOf(owner_addr)
+    assert gntb_balance > 0
+    gnt_balance = gnt.call().balanceOf(recipient)
+    chain.wait.for_receipt(
+        gntb.transact({'from': owner_addr}).withdrawTo(gntb_balance, recipient))
+    assert gntb_balance + gnt_balance == gnt.call().balanceOf(recipient)
+    assert 0 == gntb.call().balanceOf(owner_addr)
+
 
 def test_timelocks(chain):
     attacker = tester.accounts[1]
