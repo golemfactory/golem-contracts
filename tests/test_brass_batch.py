@@ -1,9 +1,11 @@
 import ethereum
+from ethereum.tester import TransactionFailed
 from ethereum.utils import int_to_big_endian, zpad
 from eth_utils import (
     encode_hex,
 )
 import functools
+import pytest
 import queue
 from test_brass_concent import mysetup
 
@@ -71,14 +73,29 @@ def test_batch_transfer(chain):
     for entry in eventNoForHash:
         assert eventNoForHash[entry] == 3
 
+
 def test_approve(chain):
     owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
     chain.wait.for_receipt(
-        gntb.transact({'from': owner_addr}).approve(receiver_addr, 10000))
-    failed = False
-    try:
-        chain.wait.for_receipt(
-            gntb.transact({'from': owner_addr}).approve(receiver_addr, 20000))
-    except ethereum.tester.TransactionFailed:
-        failed = True
-    assert failed
+        gntb.transact({'from': owner_addr}).approve(receiver_addr, 100))
+    with pytest.raises(TransactionFailed):
+        gntb.transact({'from': owner_addr}).approve(receiver_addr, 200)
+
+
+def test_batch_transfer_to_self(chain):
+    owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    addr = ethereum.tester.a1
+    payments, _ = encode_payments([(1, 1)])
+    with pytest.raises(TransactionFailed):
+        gntb.transact({'from': addr}).batchTransfer(payments, 123)
+
+
+def test_batch_transfer_to_zero(chain):
+    owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    addr = b'\0' * 20
+    vv = zpad(int_to_big_endian(1), 12)
+    mix = vv + addr
+    payments = [mix]
+    assert len(mix) == 32
+    with pytest.raises(TransactionFailed):
+        gntb.transact({'from': owner_addr}).batchTransfer(payments, 123)
