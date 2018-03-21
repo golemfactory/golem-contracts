@@ -37,6 +37,7 @@ contract GolemNetworkTokenBatching is TokenProxy {
             // following 160 bits (20 bytes) is an address.
             bytes32 payment = payments[i];
             address addr = address(payment);
+            require(addr != address(0) && addr != msg.sender);
             uint v = uint(payment) / 2**160;
             require(v <= balance);
             balances[addr] += v;
