@@ -1,4 +1,4 @@
-pragma solidity ^0.4.16;
+pragma solidity ^0.4.21;
 
 import "./open_zeppelin/ERC20.sol";
 import "./ReceivingContract.sol";
@@ -81,30 +81,30 @@ contract GNTDeposit is ReceivingContract {
 
     function unlock() external {
         locked_until[msg.sender] = block.timestamp + withdrawal_delay;
-        Unlock(msg.sender);
+        emit Unlock(msg.sender);
     }
 
     function lock() external {
         locked_until[msg.sender] = 0;
-        Lock(msg.sender);
+        emit Lock(msg.sender);
     }
 
     function onTokenReceived(address _from, uint _amount, bytes /* _data */) public onlyToken {
         balances[_from] += _amount;
-        Deposit(_from, _amount);
+        emit Deposit(_from, _amount);
     }
 
     function withdraw(address _to) onlyUnlocked external {
-        var _amount = balances[msg.sender];
+        uint256 _amount = balances[msg.sender];
         balances[msg.sender] = 0;
         locked_until[msg.sender] = 0;
         require(token.transfer(_to, _amount));
-        Withdraw(msg.sender, _to, _amount);
+        emit Withdraw(msg.sender, _to, _amount);
     }
 
     function burn(address _whom, uint256 _burn) onlyConcent external {
         _reimburse(_whom, 0xdeadbeef, _burn);
-        Burn(_whom, _burn);
+        emit Burn(_whom, _burn);
     }
 
     function reimburseForSubtask(
@@ -117,7 +117,7 @@ contract GNTDeposit is ReceivingContract {
         external
     {
         _reimburse(_requestor, _provider, _amount);
-        ReimburseForSubtask(_requestor, _provider, _amount, _subtask_id);
+        emit ReimburseForSubtask(_requestor, _provider, _amount, _subtask_id);
     }
 
     function reimburseForNoPayment(
@@ -130,7 +130,7 @@ contract GNTDeposit is ReceivingContract {
         external
     {
         _reimburse(_requestor, _provider, _amount);
-        ReimburseForNoPayment(_requestor, _provider, _amount, _closure_time);
+        emit ReimburseForNoPayment(_requestor, _provider, _amount, _closure_time);
     }
 
     function reimburseForVerificationCosts(
@@ -142,7 +142,7 @@ contract GNTDeposit is ReceivingContract {
         external
     {
         _reimburse(_from, coldwallet, _amount);
-        ReimburseForVerificationCosts(_from, _amount, _subtask_id);
+        emit ReimburseForVerificationCosts(_from, _amount, _subtask_id);
     }
 
     // internals

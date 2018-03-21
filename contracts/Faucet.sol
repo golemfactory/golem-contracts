@@ -1,4 +1,4 @@
-pragma solidity ^0.4.16;
+pragma solidity ^0.4.21;
 
 import "./GolemNetworkToken.sol";
 
@@ -19,4 +19,3 @@ contract Faucet {
         token.transfer(msg.sender, tokens);
     }
 }
-
