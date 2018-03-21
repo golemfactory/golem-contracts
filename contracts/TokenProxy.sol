@@ -1,7 +1,7 @@
 // Copyright 2018 Golem Factory
 // Licensed under the GNU General Public License v3. See the LICENSE file.
 
-pragma solidity ^0.4.19;
+pragma solidity ^0.4.21;
 
 import "./open_zeppelin/StandardToken.sol";
 
@@ -84,7 +84,7 @@ contract TokenProxy is StandardToken {
         // Remember User - Gate relationship.
         gates[user] = gate;
 
-        GateOpened(gate, user);
+        emit GateOpened(gate, user);
     }
 
     function transferFromGate() external {
@@ -104,7 +104,7 @@ contract TokenProxy is StandardToken {
         totalSupply_ += value;
         balances[user] += value;
 
-        Minted(user, value);
+        emit Minted(user, value);
     }
 
     function withdraw(uint256 _value) external {
@@ -121,6 +121,6 @@ contract TokenProxy is StandardToken {
 
         TOKEN.transfer(_destination, _value);
 
-        Burned(user, _value);
+        emit Burned(user, _value);
     }
 }

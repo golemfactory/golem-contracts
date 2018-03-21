@@ -1,7 +1,7 @@
 // Copyright 2018 Golem Factory
 // Licensed under the GNU General Public License v3. See the LICENSE file.
 
-pragma solidity ^0.4.19;
+pragma solidity ^0.4.21;
 
 import "./ReceivingContract.sol";
 import "./TokenProxy.sol";
@@ -41,7 +41,7 @@ contract GolemNetworkTokenBatching is TokenProxy {
             require(v <= balance);
             balances[addr] += v;
             balance -= v;
-            BatchTransfer(msg.sender, addr, v, closureTime);
+            emit BatchTransfer(msg.sender, addr, v, closureTime);
         }
 
         balances[msg.sender] = balance;
