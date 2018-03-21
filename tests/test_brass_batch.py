@@ -70,3 +70,15 @@ def test_batch_transfer(chain):
 
     for entry in eventNoForHash:
         assert eventNoForHash[entry] == 3
+
+def test_approve(chain):
+    owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    chain.wait.for_receipt(
+        gntb.transact({'from': owner_addr}).approve(receiver_addr, 10000))
+    failed = False
+    try:
+        chain.wait.for_receipt(
+            gntb.transact({'from': owner_addr}).approve(receiver_addr, 20000))
+    except ethereum.tester.TransactionFailed:
+        failed = True
+    assert failed

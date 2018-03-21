@@ -209,7 +209,7 @@ def prep_a_channel(chain, owner_addr, receiver_addr, gntb, pc):
     half_dep = int(deposit_size / 2)
     chain.wait.for_receipt(
         gntb.transact({'from': owner_addr}).approve(pc.address,
-                                                    half_dep * 2))
+                                                    half_dep))
     topics = [receiver_addr, channel]
     f_id = log_filter(chain, pc.address,
                       "Fund(address, bytes32, uint256)", topics)
