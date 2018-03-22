@@ -114,7 +114,7 @@ contract TokenProxy is StandardToken {
     function withdrawTo(uint256 _value, address _destination) public {
         address user = msg.sender;
         uint256 balance = balances[user];
-        require(_value <= balance);
+        require(_value > 0 && _value <= balance);
 
         balances[user] = (balance - _value);
         totalSupply_ -= _value;

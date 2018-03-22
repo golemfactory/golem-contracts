@@ -99,3 +99,18 @@ def test_batch_transfer_to_zero(chain):
     assert len(mix) == 32
     with pytest.raises(TransactionFailed):
         gntb.transact({'from': owner_addr}).batchTransfer(payments, 123)
+
+
+def test_empty_gntb_conversions(chain):
+    owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    gate_address = gntb.call().getGateAddress(owner_addr)
+    assert gate_address
+    gate_gnt_balance = gnt.call().balanceOf(gate_address)
+    assert gate_gnt_balance == 0
+    with pytest.raises(TransactionFailed):
+        gntb.transact({'from': owner_addr}).transferFromGate()
+
+    gntb_balance = gntb.call().balanceOf(owner_addr)
+    assert gntb_balance > 0
+    with pytest.raises(TransactionFailed):
+        gntb.transact({'from': owner_addr}).withdraw(0)
