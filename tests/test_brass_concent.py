@@ -96,7 +96,6 @@ def do_deposit_223(chain, gnt, gntb, cdep, owner, deposit_size):
     total_deposit = gntb.call().balanceOf(cdep.address)
     assert total_deposit == deposit_size + initial_total_deposit
     assert deposit_size == cdep.call().balanceOf(owner) - initial_dep_size
-    assert cdep.call().isLocked(owner)
 
 
 def test_withdrawGNT(chain):
@@ -172,6 +171,20 @@ def test_timelocks(chain):
             cdep.transact({'from': owner}).withdraw(owner))
     assert 0 == cdep.call().balanceOf(owner)
     assert amnt == gntb.call().balanceOf(cdep.address)
+
+
+def test_timelock_on_topup(chain):
+    owner, _, gnt, gntb, cdep = mysetup(chain)
+    deposit_size = 100000
+    timelock = cdep.call().getTimelock(owner)
+    assert timelock == 0
+    do_deposit_223(chain, gnt, gntb, cdep, owner, deposit_size // 2)
+    chain.wait.for_receipt(cdep.transact({'from': owner}).unlock())
+    timelock = cdep.call().getTimelock(owner)
+    assert timelock != 0
+    do_deposit_223(chain, gnt, gntb, cdep, owner, deposit_size // 2)
+    timelock = cdep.call().getTimelock(owner)
+    assert timelock == 0
 
 
 def test_burn(chain):
