@@ -99,7 +99,7 @@ def do_deposit_223(chain, gnt, gntb, cdep, owner, deposit_size):
     assert cdep.call().isLocked(owner)
 
 
-def test_windrawGNT(chain):
+def test_withdrawGNT(chain):
     owner_addr, concent_addr, gnt, gntb, cdep = mysetup(chain)
     gntb_balance = gntb.call().balanceOf(owner_addr)
     assert gntb_balance > 0
@@ -109,7 +109,8 @@ def test_windrawGNT(chain):
     assert gntb_balance + gnt_balance == gnt.call().balanceOf(owner_addr)
     assert 0 == gntb.call().balanceOf(owner_addr)
 
-def test_windrawTo(chain):
+
+def test_withdrawTo(chain):
     owner_addr, concent_addr, gnt, gntb, cdep = mysetup(chain)
     recipient = tester.accounts[0]
     assert owner_addr != recipient
@@ -120,6 +121,15 @@ def test_windrawTo(chain):
         gntb.transact({'from': owner_addr}).withdrawTo(gntb_balance, recipient))
     assert gntb_balance + gnt_balance == gnt.call().balanceOf(recipient)
     assert 0 == gntb.call().balanceOf(owner_addr)
+
+
+def test_withdraw_burn(chain):
+    owner_addr, concent_addr, gnt, gntb, cdep = mysetup(chain)
+    gntb_balance = gntb.call().balanceOf(owner_addr)
+    assert gntb_balance > 0
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(gntb.transact({'from': owner_addr}).withdrawTo(
+            gntb_balance, b'\0' * 20))
 
 
 def test_timelocks(chain):

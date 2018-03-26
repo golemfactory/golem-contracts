@@ -111,7 +111,7 @@ contract TokenProxy is StandardToken, BurnableToken {
     }
 
     function withdrawTo(uint256 _value, address _destination) public {
-        require(_value > 0);
+        require(_value > 0 && _destination != address(0));
         burn(_value);
         TOKEN.transfer(_destination, _value);
     }
