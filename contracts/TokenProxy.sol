@@ -3,6 +3,7 @@
 
 pragma solidity ^0.4.21;
 
+import "./open_zeppelin/BurnableToken.sol";
 import "./open_zeppelin/StandardToken.sol";
 
 /// The Gate is a contract with unique address to allow a token holder
@@ -50,7 +51,7 @@ contract Gate {
 ///
 /// In the step 3 the User's tokens are going to be moved from the Gate to
 /// the User's balance in the Proxy.
-contract TokenProxy is StandardToken {
+contract TokenProxy is StandardToken, BurnableToken {
 
     ERC20Basic public TOKEN;
 
@@ -59,9 +60,7 @@ contract TokenProxy is StandardToken {
 
     event GateOpened(address indexed gate, address indexed user);
 
-    event Minted(address indexed to, uint256 amount);
-
-    event Burned(address indexed from, uint256 amount);
+    event Mint(address indexed to, uint256 amount);
 
     function TokenProxy(ERC20Basic _token) public {
         TOKEN = _token;
@@ -104,23 +103,16 @@ contract TokenProxy is StandardToken {
         totalSupply_ += value;
         balances[user] += value;
 
-        emit Minted(user, value);
+        emit Mint(user, value);
     }
 
     function withdraw(uint256 _value) external {
-      withdrawTo(_value, msg.sender);
+        withdrawTo(_value, msg.sender);
     }
 
     function withdrawTo(uint256 _value, address _destination) public {
-        address user = msg.sender;
-        uint256 balance = balances[user];
-        require(_value > 0 && _value <= balance);
-
-        balances[user] = (balance - _value);
-        totalSupply_ -= _value;
-
+        require(_value > 0);
+        burn(_value);
         TOKEN.transfer(_destination, _value);
-
-        emit Burned(user, _value);
     }
 }

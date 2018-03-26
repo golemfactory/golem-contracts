@@ -1,6 +1,6 @@
 pragma solidity ^0.4.21;
 
-import "./open_zeppelin/ERC20.sol";
+import "./GolemNetworkTokenBatching.sol";
 import "./ReceivingContract.sol";
 
 contract GNTDeposit is ReceivingContract {
@@ -8,7 +8,7 @@ contract GNTDeposit is ReceivingContract {
     address public coldwallet;
     uint256 public withdrawal_delay;
 
-    ERC20 public token;
+    GolemNetworkTokenBatching public token;
     // owner => amount
     mapping (address => uint256) public balances;
     // owner => timestamp after which withdraw is possible
@@ -25,7 +25,7 @@ contract GNTDeposit is ReceivingContract {
     event ReimburseForVerificationCosts(address indexed _from, uint256 _amount, bytes32 _subtask_id);
 
     function GNTDeposit(
-        ERC20 _token,
+        GolemNetworkTokenBatching _token,
         address _concent,
         address _coldwallet,
         uint256 _withdrawal_delay
@@ -102,9 +102,14 @@ contract GNTDeposit is ReceivingContract {
         emit Withdraw(msg.sender, _to, _amount);
     }
 
-    function burn(address _whom, uint256 _burn) onlyConcent external {
-        _reimburse(_whom, 0xdeadbeef, _burn);
-        emit Burn(_whom, _burn);
+    function burn(address _whom, uint256 _amount) onlyConcent external {
+        require(balances[_whom] >= _amount);
+        balances[_whom] -= _amount;
+        if (balances[_whom] == 0) {
+            locked_until[_whom] = 0;
+        }
+        token.burn(_amount);
+        emit Burn(_whom, _amount);
     }
 
     function reimburseForSubtask(
