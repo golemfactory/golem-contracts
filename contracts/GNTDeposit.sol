@@ -91,6 +91,7 @@ contract GNTDeposit is ReceivingContract {
 
     function onTokenReceived(address _from, uint _amount, bytes /* _data */) public onlyToken {
         balances[_from] += _amount;
+        locked_until[_from] = 0;
         emit Deposit(_from, _amount);
     }
 
