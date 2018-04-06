@@ -2,9 +2,9 @@
 
 # PoC contents
 * *GNT* token  
-* *GNTB* for missing parts of ERC20 interface and modified ERC667 implementation  
-* *GNTDeposit* that implements timelocked deposits and deposit burning
-* *GNTPaymentChannels* for small payments to Concent
+* *GNTB* for missing parts of ERC20 interface and modified ERC667 implementation (audited)
+* *GNTDeposit* that implements timelocked deposits and deposit burning (audited)
+* *GNTPaymentChannels* for small payments to Concent (work in progress, not audited)
 
 # Requirements
 * python3 (for tests)
