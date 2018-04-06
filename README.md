@@ -2,11 +2,9 @@
 
 # PoC contents
 * *GNT* token  
-* *GNTW* for missing parts of ERC20 interface and ERC223 implementation  
+* *GNTB* for missing parts of ERC20 interface and modified ERC667 implementation  
 * *GNTDeposit* that implements timelocked deposits and deposit burning
-* *GNTPaymentChannels* for small payments to Consent
-
-All with basic smoke tests.
+* *GNTPaymentChannels* for small payments to Concent
 
 # Requirements
 * python3 (for tests)
@@ -63,4 +61,4 @@ to `yourEthAddress` just below there is provider -> settings -> `ipc_path` updat
 
 `python deploy.py --chain rinkeby --owner "yourEthAddress" --consent "yourEthAddress" --coldwallet "yourEthAddress"`
 
-Note that consent address and cold wallet addres are to be discussed, for now pointing them to your deployment addres is all right. 
+Note that consent address and cold wallet addres are to be discussed, for now pointing them to your deployment addres is all right.
