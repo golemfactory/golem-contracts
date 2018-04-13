@@ -62,7 +62,7 @@ contract GNTPaymentChannels is ReceivingContract {
         external
         view
         returns (uint256) {
-        PaymentChannel ch = channels[_channel];
+        PaymentChannel storage ch = channels[_channel];
         return ch.deposited;
     }
 
@@ -87,7 +87,7 @@ contract GNTPaymentChannels is ReceivingContract {
         return channels[_channel].receiver;
     }
 
-    function isLocked(bytes32 _channel) public returns (bool) {
+    function isLocked(bytes32 _channel) public view returns (bool) {
         return channels[_channel].locked_until == 0;
     }
 
@@ -101,8 +101,8 @@ contract GNTPaymentChannels is ReceivingContract {
     }
 
     function isValidSig(bytes32 _ch, uint _value,
-                        uint8 _v, bytes32 _r, bytes32 _s) view returns (bool) {
-        return (channels[_ch].owner) == (ecrecover(sha3(_ch, _value), _v, _r, _s));
+                        uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
+        return (channels[_ch].owner) == (ecrecover(keccak256(_ch, _value), _v, _r, _s));
     }
 
     // functions that modify state
@@ -110,35 +110,34 @@ contract GNTPaymentChannels is ReceivingContract {
     // FIXME: Channel needs to be created before it can be funded.
     function createChannel(address _receiver)
         external {
-        bytes32 channel = sha3(id++);
+        bytes32 channel = keccak256(id++);
         channels[channel] = PaymentChannel(msg.sender, _receiver, 0, 0, 0);
-        NewChannel(msg.sender, _receiver, channel); // event
+        emit NewChannel(msg.sender, _receiver, channel); // event
     }
 
     // Fund existing channel; can be done multiple times.
-    function onTokenReceived(address _from, uint _value, bytes _data) {
+    function onTokenReceived(address _from, uint _value, bytes _data) public {
         bytes32 channel;
         assembly {
           channel := mload(add(_data, 32))
         }
-        PaymentChannel ch = channels[channel];
+        PaymentChannel storage ch = channels[channel];
         require(_from == ch.owner);
         ch.deposited += _value;
-        Fund(ch.receiver, channel, _value);
+        emit Fund(ch.receiver, channel, _value);
     }
 
     // Fund existing channel; can be done multiple times.
     // Uses ERC20 token API
-    function fund(bytes32 _channel, uint256 _amount)
-        returns (bool) {
-        PaymentChannel ch = channels[_channel];
+    function fund(bytes32 _channel, uint256 _amount) public returns (bool) {
+        PaymentChannel storage ch = channels[_channel];
         // check if channel exists
         // this prevents fund loss
         require(ch.receiver != address(0));
         if (token.transferFrom(msg.sender, address(this), _amount)) {
             ch.deposited += _amount;
             ch.locked_until = 0;
-            Fund(ch.receiver, _channel, _amount); // event
+            emit Fund(ch.receiver, _channel, _amount); // event
             return true;
         }
         return false;
@@ -150,9 +149,9 @@ contract GNTPaymentChannels is ReceivingContract {
         external
         onlyValidSig(_channel, _value, _v, _r, _s)
         returns (bool) {
-        PaymentChannel ch = channels[_channel];
+        PaymentChannel storage ch = channels[_channel];
         require(ch.withdrawn < _value); // <- STRICT less than!
-        var amount = _value - ch.withdrawn;
+        uint256 amount = _value - ch.withdrawn;
         // Receiver has been cheated! Withdraw as much as possible.
         if (ch.deposited - ch.withdrawn < amount)
             amount = ch.deposited - ch.withdrawn;
@@ -164,9 +163,9 @@ contract GNTPaymentChannels is ReceivingContract {
     function unlock(bytes32 _channel)
         external
         onlyOwner(_channel) {
-        PaymentChannel ch = channels[_channel];
+        PaymentChannel storage ch = channels[_channel];
         ch.locked_until = block.timestamp + close_delay;
-        TimeLocked(ch.owner, ch.receiver, _channel);
+        emit TimeLocked(ch.owner, ch.receiver, _channel);
     }
 
     // Owner can close channel to reclaim its money.
@@ -193,10 +192,10 @@ contract GNTPaymentChannels is ReceivingContract {
         private
         returns (bool) {
 
-        PaymentChannel ch = channels[_channel];
+        PaymentChannel storage ch = channels[_channel];
         if (token.transfer(ch.receiver, _amount)) {
             ch.withdrawn += _amount;
-            Withdraw(ch.owner, ch.receiver);
+            emit Withdraw(ch.owner, ch.receiver);
             return true;
         }
         return false;
@@ -206,13 +205,14 @@ contract GNTPaymentChannels is ReceivingContract {
         private
         returns (bool) {
 
-        PaymentChannel ch = channels[_channel];
-        var amount = ch.deposited - ch.withdrawn;
+        PaymentChannel storage ch = channels[_channel];
+        uint256 amount = ch.deposited - ch.withdrawn;
         if (token.transfer(ch.owner, amount)) {
-            if (force)
-                { ForceClose(ch.owner, ch.receiver, _channel); }
-            else
-                { Close(ch.owner, ch.receiver, _channel); }
+            if (force) {
+              emit ForceClose(ch.owner, ch.receiver, _channel);
+            } else {
+              emit Close(ch.owner, ch.receiver, _channel);
+            }
             delete channels[_channel];
             return true;
         }
