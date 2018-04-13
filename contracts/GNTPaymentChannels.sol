@@ -127,22 +127,6 @@ contract GNTPaymentChannels is ReceivingContract {
         emit Fund(ch.receiver, channel, _value);
     }
 
-    // Fund existing channel; can be done multiple times.
-    // Uses ERC20 token API
-    function fund(bytes32 _channel, uint256 _amount) public returns (bool) {
-        PaymentChannel storage ch = channels[_channel];
-        // check if channel exists
-        // this prevents fund loss
-        require(ch.receiver != address(0));
-        if (token.transferFrom(msg.sender, address(this), _amount)) {
-            ch.deposited += _amount;
-            ch.locked_until = 0;
-            emit Fund(ch.receiver, _channel, _amount); // event
-            return true;
-        }
-        return false;
-    }
-
     // Receiver can withdraw multiple times without closing the channel
     function withdraw(bytes32 _channel, uint256 _value,
                       uint8 _v, bytes32 _r, bytes32 _s)
