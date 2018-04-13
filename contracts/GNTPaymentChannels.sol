@@ -109,7 +109,7 @@ contract GNTPaymentChannels is ReceivingContract {
     }
 
     // Fund existing channel; can be done multiple times.
-    function onTokenReceived(address _from, uint _value, bytes _data) public {
+    function onTokenReceived(address _from, uint _value, bytes _data) public onlyToken {
         bytes32 channel;
         assembly {
           channel := mload(add(_data, 32))

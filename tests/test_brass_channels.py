@@ -162,6 +162,17 @@ def test_forceClose(chain):
                                                           V, ER, ES))
 
 
+def test_onTokenReceived(chain):
+    owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    pc = deploy_channels(chain, owner_addr, gntb)
+    channel = prep_a_channel(chain, owner_addr, receiver_addr, gntb, pc)
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            pc.transact({'from': owner_addr}).onTokenReceived(owner_addr,
+                                                              123,
+                                                              channel))
+
+
 def sign_transfer(channel, owner_priv, receiver_addr, amount):
     # in Solidity: sha3(channel, bytes32(_value)):
     msghash = utils.sha3(channel + cpack(32, amount))
