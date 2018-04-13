@@ -28,8 +28,7 @@ contract GNTPaymentChannels is ReceivingContract {
     event Close(address indexed _owner, address indexed _receiver, bytes32 _channel);
     event ForceClose(address indexed _owner, address indexed _receiver, bytes32 _channel);
 
-    function GNTPaymentChannels(address _token, uint256 _close_delay)
-        public {
+    function GNTPaymentChannels(address _token, uint256 _close_delay) public {
         token = GolemNetworkTokenBatching(_token);
         id = 0;
         close_delay = _close_delay;
@@ -40,8 +39,7 @@ contract GNTPaymentChannels is ReceivingContract {
         _;
     }
 
-    modifier onlyValidSig(bytes32 _ch, uint _value,
-                      uint8 _v, bytes32 _r, bytes32 _s) {
+    modifier onlyValidSig(bytes32 _ch, uint _value, uint8 _v, bytes32 _r, bytes32 _s) {
         require(isValidSig(_ch, _value, _v, _r, _s));
         _;
     }
@@ -58,32 +56,20 @@ contract GNTPaymentChannels is ReceivingContract {
 
     // helpers: check channel status
 
-    function getDeposited(bytes32 _channel)
-        external
-        view
-        returns (uint256) {
+    function getDeposited(bytes32 _channel) external view returns (uint256) {
         PaymentChannel storage ch = channels[_channel];
         return ch.deposited;
     }
 
-    function getWithdrawn(bytes32 _channel)
-        external
-        view
-        returns (uint256) {
+    function getWithdrawn(bytes32 _channel) external view returns (uint256) {
         return channels[_channel].withdrawn;
     }
 
-    function getOwner(bytes32 _channel)
-        external
-        view
-        returns (address) {
+    function getOwner(bytes32 _channel) external view returns (address) {
         return channels[_channel].owner;
     }
 
-    function getReceiver(bytes32 _channel)
-        external
-        view
-        returns (address) {
+    function getReceiver(bytes32 _channel) external view returns (address) {
         return channels[_channel].receiver;
     }
 
@@ -96,20 +82,27 @@ contract GNTPaymentChannels is ReceivingContract {
     }
 
     function isUnlocked(bytes32 _channel) public view returns (bool) {
-        return ((channels[_channel].locked_until != 0) &&
-                (channels[_channel].locked_until < block.timestamp));
+        return !isLocked(_channel) && !isTimeLocked(_channel);
     }
 
-    function isValidSig(bytes32 _ch, uint _value,
-                        uint8 _v, bytes32 _r, bytes32 _s) public view returns (bool) {
+    function isValidSig(
+        bytes32 _ch,
+        uint _value,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
+    )
+        public
+        view
+        returns (bool)
+    {
         return (channels[_ch].owner) == (ecrecover(keccak256(_ch, _value), _v, _r, _s));
     }
 
     // functions that modify state
 
     // FIXME: Channel needs to be created before it can be funded.
-    function createChannel(address _receiver)
-        external {
+    function createChannel(address _receiver) external {
         bytes32 channel = keccak256(id++);
         channels[channel] = PaymentChannel(msg.sender, _receiver, 0, 0, 0);
         emit NewChannel(msg.sender, _receiver, channel); // event
@@ -128,11 +121,17 @@ contract GNTPaymentChannels is ReceivingContract {
     }
 
     // Receiver can withdraw multiple times without closing the channel
-    function withdraw(bytes32 _channel, uint256 _value,
-                      uint8 _v, bytes32 _r, bytes32 _s)
+    function withdraw(
+        bytes32 _channel,
+        uint256 _value,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
+    )
         external
         onlyValidSig(_channel, _value, _v, _r, _s)
-        returns (bool) {
+        returns (bool)
+    {
         PaymentChannel storage ch = channels[_channel];
         require(ch.withdrawn < _value); // <- STRICT less than!
         uint256 amount = _value - ch.withdrawn;
@@ -144,9 +143,7 @@ contract GNTPaymentChannels is ReceivingContract {
 
     // If receiver does not want to close channel, owner can do that
     // by calling unlock and waiting for grace period (close_delay).
-    function unlock(bytes32 _channel)
-        external
-        onlyOwner(_channel) {
+    function unlock(bytes32 _channel) external onlyOwner(_channel) {
         PaymentChannel storage ch = channels[_channel];
         ch.locked_until = block.timestamp + close_delay;
         emit TimeLocked(ch.owner, ch.receiver, _channel);
@@ -157,25 +154,21 @@ contract GNTPaymentChannels is ReceivingContract {
         external
         onlyOwner(_channel)
         unlocked(_channel)
-        returns (bool) {
+        returns (bool)
+    {
         return _do_close(_channel, false);
     }
 
     // Receiver can close channel and return owner all of the funds.
     // Receiver should `withdraw` its own funds first!
-    function forceClose(bytes32 _channel)
-        external
-        returns (bool) {
+    function forceClose(bytes32 _channel) external returns (bool) {
         require(msg.sender == channels[_channel].receiver);
         return _do_close(_channel, true);
     }
 
     // internals
 
-    function _do_withdraw(bytes32 _channel, uint256 _amount)
-        private
-        returns (bool) {
-
+    function _do_withdraw(bytes32 _channel, uint256 _amount) private returns (bool) {
         PaymentChannel storage ch = channels[_channel];
         if (token.transfer(ch.receiver, _amount)) {
             ch.withdrawn += _amount;
@@ -185,10 +178,7 @@ contract GNTPaymentChannels is ReceivingContract {
         return false;
     }
 
-    function _do_close(bytes32 _channel, bool force)
-        private
-        returns (bool) {
-
+    function _do_close(bytes32 _channel, bool force) private returns (bool) {
         PaymentChannel storage ch = channels[_channel];
         uint256 amount = ch.deposited - ch.withdrawn;
         if (token.transfer(ch.owner, amount)) {
