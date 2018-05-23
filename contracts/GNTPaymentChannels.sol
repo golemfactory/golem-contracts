@@ -78,7 +78,7 @@ contract GNTPaymentChannels is ReceivingContract {
         require(_data.length == 20);
         address receiver;
         assembly {
-          receiver := mload(add(_data, 20))
+          receiver := div(mload(add(_data, 0x20)), 0x1000000000000000000000000)
         }
         PaymentChannel storage ch = _getChannel(_owner, receiver);
         ch.deposited += _value;
@@ -119,7 +119,9 @@ contract GNTPaymentChannels is ReceivingContract {
         emit TimeLocked(owner, receiver);
     }
 
-    // Owner can close channel to reclaim its money.
+    // Owner can close channel to reclaim all their remaining money.
+    // It doesn't actually deletes the struct from the storage, but it
+    // invalidates all existing (up to the current amount) signed messages.
     function close(address receiver) external {
         address owner = msg.sender;
         PaymentChannel storage ch = _getChannel(owner, receiver);
