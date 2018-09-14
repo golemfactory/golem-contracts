@@ -221,6 +221,7 @@ def test_reimburse(chain):
     cdep.on('ReimburseForSubtask', None, cbk)
     cdep.on('ReimburseForNoPayment', None, cbk)
     cdep.on('ReimburseForVerificationCosts', None, cbk)
+    cdep.on('ReimburseForCommunication', None, cbk)
     # not concent
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
@@ -251,6 +252,14 @@ def test_reimburse(chain):
     assert amnt == gntb.call().balanceOf(cdep.address)
     assert q.empty()
 
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            cdep.transact({'from': other_addr}).reimburseForCommunication(
+                owner_addr,
+                half_dep))
+    assert amnt == gntb.call().balanceOf(cdep.address)
+    assert q.empty()
+
     # concent
     chain.wait.for_receipt(
         cdep.transact({'from': concent_addr}).reimburseForSubtask(
@@ -258,8 +267,7 @@ def test_reimburse(chain):
             other_addr,
             half_dep,
             subtask_id))
-    time.sleep(1)
-    event = q.get()
+    event = q.get(timeout=60)
     assert 'ReimburseForSubtask' == event['event']
     assert owner_addr == utils.decode_hex(event['args']['_requestor'][2:])
     assert other_addr == utils.decode_hex(event['args']['_provider'][2:])
@@ -275,7 +283,7 @@ def test_reimburse(chain):
             other_addr,
             amount,
             closure_time))
-    event = q.get()
+    event = q.get(timeout=60)
     assert 'ReimburseForNoPayment' == event['event']
     assert owner_addr == utils.decode_hex(event['args']['_requestor'][2:])
     assert other_addr == utils.decode_hex(event['args']['_provider'][2:])
@@ -284,14 +292,26 @@ def test_reimburse(chain):
     assert amnt - half_dep - amount == cdep.call().balanceOf(owner_addr)
     assert amnt - half_dep - amount == gntb.call().balanceOf(cdep.address)
 
-    amount = half_dep - 1
+    amount = 2
     chain.wait.for_receipt(
         cdep.transact({'from': concent_addr}).reimburseForVerificationCosts(
             owner_addr,
             amount,
             subtask_id))
-    event = q.get()
+    event = q.get(timeout=60)
     assert 'ReimburseForVerificationCosts' == event['event']
+    assert owner_addr == utils.decode_hex(event['args']['_from'][2:])
+    assert amount == event['args']['_amount']
+    assert amnt - half_dep - 3 == cdep.call().balanceOf(owner_addr)
+    assert amnt - half_dep - 3 == gntb.call().balanceOf(cdep.address)
+
+    amount = half_dep - 3
+    chain.wait.for_receipt(
+        cdep.transact({'from': concent_addr}).reimburseForCommunication(
+            owner_addr,
+            amount))
+    event = q.get(timeout=60)
+    assert 'ReimburseForCommunication' == event['event']
     assert owner_addr == utils.decode_hex(event['args']['_from'][2:])
     assert amount == event['args']['_amount']
     assert 0 == cdep.call().balanceOf(owner_addr)

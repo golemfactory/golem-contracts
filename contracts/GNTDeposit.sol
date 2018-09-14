@@ -23,6 +23,7 @@ contract GNTDeposit is ReceivingContract {
     event ReimburseForSubtask(address indexed _requestor, address indexed _provider, uint256 _amount, bytes32 _subtask_id);
     event ReimburseForNoPayment(address indexed _requestor, address indexed _provider, uint256 _amount, uint256 _closure_time);
     event ReimburseForVerificationCosts(address indexed _from, uint256 _amount, bytes32 _subtask_id);
+    event ReimburseForCommunication(address indexed _from, uint256 _amount);
 
     function GNTDeposit(
         GolemNetworkTokenBatching _token,
@@ -149,6 +150,17 @@ contract GNTDeposit is ReceivingContract {
     {
         _reimburse(_from, coldwallet, _amount);
         emit ReimburseForVerificationCosts(_from, _amount, _subtask_id);
+    }
+
+    function reimburseForCommunication(
+        address _from,
+        uint256 _amount
+    )
+        onlyConcent
+        external
+    {
+        _reimburse(_from, coldwallet, _amount);
+        emit ReimburseForCommunication(_from, _amount);
     }
 
     // internals
