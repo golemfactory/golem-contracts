@@ -2,33 +2,24 @@ version: 2
 jobs:
    build:
      docker:
-       - image: ubuntu:16.04
+       - image: circleci/python:3.6
      environment:
        LC_ALL: C.UTF-8
        LANG: C.UTF-8
      steps:
-       - run:
-           name: install git
-           command: |
-               apt-get update
-               apt-get install -y git
        - checkout
        - run:
             name: install dependencies
             command: |
-                apt-get install -y software-properties-common
-                add-apt-repository -y ppa:ethereum/ethereum
-                apt-get update
-                apt-get install -y solc
-                apt-get install -y python3-venv
-                apt-get install -y python3-dev
-                apt-get install -y libssl-dev
-                apt-get install -y g++
-                 python3 -m venv venv
+                wget https://github.com/ethereum/solidity/releases/download/v0.4.21/solc-static-linux
+                sudo mv solc-static-linux /usr/local/bin/solc
+                sudo chmod +x /usr/local/bin/solc
+                sudo apt-get install -y libgmp3-dev libsecp256k1-0 libsecp256k1-dev
+                python3 -m venv venv
                 . venv/bin/activate
                 pip install --upgrade pip
                 pip install -r requirements.txt
-                
+
        - run:
            name: compile project
            command: |
@@ -38,4 +29,4 @@ jobs:
            name: run tests
            command: |
                . venv/bin/activate
-               pytest 
+               pytest
