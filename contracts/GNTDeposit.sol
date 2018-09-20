@@ -1,9 +1,10 @@
 pragma solidity ^0.4.21;
 
+import "./open_zeppelin/Ownable.sol";
 import "./GolemNetworkTokenBatching.sol";
 import "./ReceivingContract.sol";
 
-contract GNTDeposit is ReceivingContract {
+contract GNTDeposit is ReceivingContract, Ownable {
     address public concent;
     address public coldwallet;
     uint256 public withdrawal_delay;
@@ -15,6 +16,8 @@ contract GNTDeposit is ReceivingContract {
     //        | 0 if locked
     mapping (address => uint256) public locked_until;
 
+    event ConcentTransferred(address indexed _previousConcent, address indexed _newConcent);
+    event ColdwalletTransferred(address indexed _previousColdwallet, address indexed _newColdwallet);
     event Deposit(address indexed _owner, uint256 _amount);
     event Withdraw(address indexed _from, address indexed _to, uint256 _amount);
     event Lock(address indexed _owner);
@@ -76,6 +79,20 @@ contract GNTDeposit is ReceivingContract {
 
     function getTimelock(address _owner) external view returns (uint256) {
         return locked_until[_owner];
+    }
+
+    // management
+
+    function transferConcent(address _newConcent) onlyOwner external {
+        require(_newConcent != address(0));
+        emit ConcentTransferred(concent, _newConcent);
+        concent = _newConcent;
+    }
+
+    function transferColdwallet(address _newColdwallet) onlyOwner external {
+        require(_newColdwallet != address(0));
+        emit ColdwalletTransferred(coldwallet, _newColdwallet);
+        coldwallet = _newColdwallet;
     }
 
     // deposit API
