@@ -12,23 +12,24 @@ from eth_utils import (
 
 
 def test_close(chain):
-    owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
-    pc = deploy_channels(chain, owner_addr, gntb)
-    prep_a_channel(chain, owner_addr, receiver_addr, gntb, pc)
+    _, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    user_addr = tester.accounts[0]
+    pc = deploy_channels(chain, user_addr, gntb)
+    prep_a_channel(chain, user_addr, receiver_addr, gntb, pc)
     # bad caller
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
             pc.transact({'from': receiver_addr}).close(receiver_addr))
-    assert pc.call().isLocked(owner_addr, receiver_addr)
+    assert pc.call().isLocked(user_addr, receiver_addr)
     # unlock needed first
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({'from': owner_addr}).close(receiver_addr))
-    topics = [owner_addr, receiver_addr]
+            pc.transact({'from': user_addr}).close(receiver_addr))
+    topics = [user_addr, receiver_addr]
     f_id = log_filter(chain, pc.address,
                       "TimeLocked(address, address)", topics)
     chain.wait.for_receipt(
-        pc.transact({'from': owner_addr}).unlock(receiver_addr))
+        pc.transact({'from': user_addr}).unlock(receiver_addr))
     logs = get_logs(f_id)
     assert len(logs) == 1
     # achannel = logs[0]["data"]
@@ -40,38 +41,39 @@ def test_close(chain):
     f_id = log_filter(chain, pc.address,
                       "Close(address, address)", topics)
     # too early, still in close_delay period
-    assert pc.call().isTimeLocked(owner_addr, receiver_addr)
+    assert pc.call().isTimeLocked(user_addr, receiver_addr)
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({'from': owner_addr}).close(receiver_addr))
-    while pc.call().isTimeLocked(owner_addr, receiver_addr):
+            pc.transact({'from': user_addr}).close(receiver_addr))
+    while pc.call().isTimeLocked(user_addr, receiver_addr):
         chain.web3.testing.mine(1)
     # proper close
     chain.wait.for_receipt(
-        pc.transact({'from': owner_addr}).close(receiver_addr))
+        pc.transact({'from': user_addr}).close(receiver_addr))
     logs = get_logs(f_id)
     assert len(logs) == 1
     # achannel = logs[0]["data"]
     # assert achannel == eth_utils.encode_hex(channel)
     # can't withdraw from closed channel
     owner_priv = ethereum.tester.keys[9]
-    V, ER, ES = sign_transfer(owner_priv, owner_addr, receiver_addr, 10)
+    V, ER, ES = sign_transfer(owner_priv, user_addr, receiver_addr, 10)
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({'from': receiver_addr}).withdraw(owner_addr, 10,
+            pc.transact({'from': receiver_addr}).withdraw(user_addr, 10,
                                                           V, ER, ES))
 
 
 def test_withdraw(chain):
-    owner_addr, _, gnt, gntb, cdep = mysetup(chain)
-    owner_priv = ethereum.tester.keys[7]
+    _, _, gnt, gntb, cdep = mysetup(chain)
+    user_addr = tester.accounts[0]
+    user_priv = ethereum.tester.keys[0]
     receiver_addr = tester.accounts[1]
-    pc = deploy_channels(chain, owner_addr, gntb)
-    prep_a_channel(chain, owner_addr, receiver_addr, gntb, pc)
+    pc = deploy_channels(chain, user_addr, gntb)
+    prep_a_channel(chain, user_addr, receiver_addr, gntb, pc)
 
     def capacity():
-        dep = pc.call().getDeposited(owner_addr, receiver_addr)
-        wit = pc.call().getWithdrawn(owner_addr, receiver_addr)
+        dep = pc.call().getDeposited(user_addr, receiver_addr)
+        wit = pc.call().getWithdrawn(user_addr, receiver_addr)
         return dep - wit
 
     def shared_capacity():
@@ -80,17 +82,17 @@ def test_withdraw(chain):
     c_cap = capacity()
     sh_cap = shared_capacity()
 
-    V, ER, ES = sign_transfer(owner_priv, owner_addr, receiver_addr, 10)
-    assert pc.call().isValidSig(owner_addr, receiver_addr, 10, V, ER, ES)
+    V, ER, ES = sign_transfer(user_priv, user_addr, receiver_addr, 10)
+    assert pc.call().isValidSig(user_addr, receiver_addr, 10, V, ER, ES)
     # withdraw wrong amount
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({"from": receiver_addr}).withdraw(owner_addr, 1000,
+            pc.transact({"from": receiver_addr}).withdraw(user_addr, 1000,
                                                           V, ER, ES))
     # withdraw wrong amount
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({"from": receiver_addr}).withdraw(owner_addr, 5,
+            pc.transact({"from": receiver_addr}).withdraw(user_addr, 5,
                                                           V, ER, ES))
 
     # use damaged signature
@@ -99,46 +101,47 @@ def test_withdraw(chain):
     ES1 = bytes(ES1)
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({"from": receiver_addr}).withdraw(owner_addr, 10,
+            pc.transact({"from": receiver_addr}).withdraw(user_addr, 10,
                                                           V, ER, ES1))
     # successful withdrawal
     assert 10 <= shared_capacity()
     assert 10 <= capacity()
-    assert pc.call().isValidSig(owner_addr, receiver_addr, 10, V, ER, ES)
+    assert pc.call().isValidSig(user_addr, receiver_addr, 10, V, ER, ES)
     chain.wait.for_receipt(
-        pc.transact({"from": receiver_addr}).withdraw(owner_addr, 10, V, ER, ES))
+        pc.transact({"from": receiver_addr}).withdraw(user_addr, 10, V, ER, ES))
     assert capacity() == c_cap - 10
     assert shared_capacity() == sh_cap - 10
 
     # reuse correctly signed cheque
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({"from": receiver_addr}).withdraw(owner_addr, 10,
+            pc.transact({"from": receiver_addr}).withdraw(user_addr, 10,
                                                           V, ER, ES))
     # try to double-spend by reversing order of applying cheques
-    V, ER, ES = sign_transfer(owner_priv, owner_addr, receiver_addr, 5)
+    V, ER, ES = sign_transfer(user_priv, user_addr, receiver_addr, 5)
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({"from": receiver_addr}).withdraw(owner_addr, 5,
+            pc.transact({"from": receiver_addr}).withdraw(user_addr, 5,
                                                           V, ER, ES))
     # get 10 more
-    V, ER, ES = sign_transfer(owner_priv, owner_addr, receiver_addr, 20)
+    V, ER, ES = sign_transfer(user_priv, user_addr, receiver_addr, 20)
     chain.wait.for_receipt(
-        pc.transact({"from": receiver_addr}).withdraw(owner_addr, 20,
+        pc.transact({"from": receiver_addr}).withdraw(user_addr, 20,
                                                       V, ER, ES))
     assert capacity() == c_cap - 20
     assert shared_capacity() == sh_cap - 20
 
 
 def test_onTokenReceived(chain):
-    owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
-    pc = deploy_channels(chain, owner_addr, gntb)
-    prep_a_channel(chain, owner_addr, receiver_addr, gntb, pc)
+    _, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    user_addr = tester.accounts[0]
+    pc = deploy_channels(chain, user_addr, gntb)
+    prep_a_channel(chain, user_addr, receiver_addr, gntb, pc)
     with pytest.raises(TransactionFailed):
         chain.wait.for_receipt(
-            pc.transact({'from': owner_addr}).onTokenReceived(owner_addr,
-                                                              123,
-                                                              receiver_addr))
+            pc.transact({'from': user_addr}).onTokenReceived(user_addr,
+                                                             123,
+                                                             receiver_addr))
 
 
 def sign_transfer(owner_priv, owner_addr, receiver_addr, amount):

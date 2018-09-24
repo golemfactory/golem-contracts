@@ -1,4 +1,5 @@
 import ethereum
+from ethereum import tester
 from ethereum.tester import TransactionFailed
 from ethereum.utils import int_to_big_endian, zpad
 from eth_utils import (
@@ -27,7 +28,7 @@ def encode_payments(payments):
 
 
 def test_batch_transfer(chain):
-    owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    _, receiver_addr, gnt, gntb, cdep = mysetup(chain)
     eba0 = gntb.call().balanceOf(ethereum.tester.a0)
     eba1 = gntb.call().balanceOf(ethereum.tester.a1)
     eba2 = gntb.call().balanceOf(ethereum.tester.a2)
@@ -75,15 +76,16 @@ def test_batch_transfer(chain):
 
 
 def test_approve(chain):
-    owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    _, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    user_addr = tester.accounts[0]
     chain.wait.for_receipt(
-        gntb.transact({'from': owner_addr}).approve(receiver_addr, 100))
+        gntb.transact({'from': user_addr}).approve(receiver_addr, 100))
     with pytest.raises(TransactionFailed):
-        gntb.transact({'from': owner_addr}).approve(receiver_addr, 200)
+        gntb.transact({'from': user_addr}).approve(receiver_addr, 200)
 
 
 def test_batch_transfer_to_self(chain):
-    owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    _, receiver_addr, gnt, gntb, cdep = mysetup(chain)
     addr = ethereum.tester.a1
     payments, _ = encode_payments([(1, 1)])
     with pytest.raises(TransactionFailed):
@@ -91,26 +93,28 @@ def test_batch_transfer_to_self(chain):
 
 
 def test_batch_transfer_to_zero(chain):
-    owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    _, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    user_addr = tester.accounts[0]
     addr = b'\0' * 20
     vv = zpad(int_to_big_endian(1), 12)
     mix = vv + addr
     payments = [mix]
     assert len(mix) == 32
     with pytest.raises(TransactionFailed):
-        gntb.transact({'from': owner_addr}).batchTransfer(payments, 123)
+        gntb.transact({'from': user_addr}).batchTransfer(payments, 123)
 
 
 def test_empty_gntb_conversions(chain):
-    owner_addr, receiver_addr, gnt, gntb, cdep = mysetup(chain)
-    gate_address = gntb.call().getGateAddress(owner_addr)
+    _, receiver_addr, gnt, gntb, cdep = mysetup(chain)
+    user_addr = tester.accounts[0]
+    gate_address = gntb.call().getGateAddress(user_addr)
     assert gate_address
     gate_gnt_balance = gnt.call().balanceOf(gate_address)
     assert gate_gnt_balance == 0
     with pytest.raises(TransactionFailed):
-        gntb.transact({'from': owner_addr}).transferFromGate()
+        gntb.transact({'from': user_addr}).transferFromGate()
 
-    gntb_balance = gntb.call().balanceOf(owner_addr)
+    gntb_balance = gntb.call().balanceOf(user_addr)
     assert gntb_balance > 0
     with pytest.raises(TransactionFailed):
-        gntb.transact({'from': owner_addr}).withdraw(0)
+        gntb.transact({'from': user_addr}).withdraw(0)
