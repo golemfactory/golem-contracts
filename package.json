@@ -1,0 +1,22 @@
+{
+  "name": "golem-contracts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "lint": "solhint **/*.sol"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/golemfactory/golem-contracts.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/golemfactory/golem-contracts/issues"
+  },
+  "homepage": "https://github.com/golemfactory/golem-contracts#readme",
+  "devDependencies": {
+    "solhint": "^1.2.1"
+  }
+}
