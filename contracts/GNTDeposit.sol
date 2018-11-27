@@ -7,7 +7,21 @@ import "./ReceivingContract.sol";
 contract GNTDeposit is ReceivingContract, Ownable {
     address public concent;
     address public coldwallet;
+
+    // Deposit will be locked for this much longer after unlocking and before
+    // it's possible to withdraw.
     uint256 public withdrawal_delay;
+
+    // Contract will not accept new deposits if the total amount of tokens it
+    // holds would exceed this amount.
+    uint256 public maximum_deposits_total;
+    // Maximum deposit value per user.
+    uint256 public maximum_deposit_amount;
+
+    // Limit amount of tokens Concent can reimburse within a single day.
+    uint256 public daily_reimbursement_limit;
+    uint256 private current_reimbursement_day;
+    uint256 private current_reimbursement_sum;
 
     GolemNetworkTokenBatching public token;
     // owner => amount
@@ -81,6 +95,10 @@ contract GNTDeposit is ReceivingContract, Ownable {
         return locked_until[_owner];
     }
 
+    function isDepositPossible(address _owner, uint256 _amount) external view returns (bool) {
+        return !_isTotalDepositsLimitHit(_amount) && !_isMaximumDepositLimitHit(_owner, _amount);
+    }
+
     // management
 
     function transferConcent(address _newConcent) onlyOwner external {
@@ -95,6 +113,18 @@ contract GNTDeposit is ReceivingContract, Ownable {
         coldwallet = _newColdwallet;
     }
 
+    function setMaximumDepositsTotal(uint256 _value) onlyOwner external {
+        maximum_deposits_total = _value;
+    }
+
+    function setMaximumDepositAmount(uint256 _value) onlyOwner external {
+        maximum_deposit_amount = _value;
+    }
+
+    function setDailyReimbursementLimit(uint256 _value) onlyOwner external {
+        daily_reimbursement_limit = _value;
+    }
+
     // deposit API
 
     function unlock() external {
@@ -107,7 +137,11 @@ contract GNTDeposit is ReceivingContract, Ownable {
         emit Lock(msg.sender);
     }
 
-    function onTokenReceived(address _from, uint _amount, bytes /* _data */) public onlyToken {
+    function onTokenReceived(address _from, uint256 _amount, bytes /* _data */) public onlyToken {
+        // Pass 0 as the amount since this check happens post transfer, thus
+        // amount is already accounted for in the balance
+        require(!_isTotalDepositsLimitHit(0));
+        require(!_isMaximumDepositLimitHit(_from, _amount));
         balances[_from] += _amount;
         locked_until[_from] = 0;
         emit Deposit(_from, _amount);
@@ -184,11 +218,35 @@ contract GNTDeposit is ReceivingContract, Ownable {
 
     function _reimburse(address _from, address _to, uint256 _amount) private {
         require(balances[_from] >= _amount);
+        if (daily_reimbursement_limit != 0) {
+            if (current_reimbursement_day != block.timestamp / 1 days) {
+                current_reimbursement_day = block.timestamp / 1 days;
+                current_reimbursement_sum = 0;
+            }
+            require(current_reimbursement_sum + _amount <= daily_reimbursement_limit);
+            current_reimbursement_sum += _amount;
+        }
         balances[_from] -= _amount;
         if (balances[_from] == 0) {
             locked_until[_from] = 0;
         }
         require(token.transfer(_to, _amount));
+    }
+
+    function _isTotalDepositsLimitHit(uint256 _amount) private view returns (bool) {
+        if (maximum_deposits_total == 0) {
+            return false;
+        }
+        // SafeMath is not required here, as these numbers won't exceed token's total supply
+        return token.balanceOf(address(this)) + _amount > maximum_deposits_total;
+    }
+
+    function _isMaximumDepositLimitHit(address _owner, uint256 _amount) private view returns (bool) {
+        if (maximum_deposit_amount == 0) {
+            return false;
+        }
+        // SafeMath is not required here, as these numbers won't exceed token's total supply
+        return balances[_owner] + _amount > maximum_deposit_amount;
     }
 
 }
