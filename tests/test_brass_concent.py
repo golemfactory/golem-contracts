@@ -382,6 +382,84 @@ def test_transfer_coldwallet(chain):
     assert half_dep + coldwallet_balance == gntb.call().balanceOf(new_coldwallet)  # noqa
 
 
+def test_deposit_limit(chain):
+    factory, concent_addr, gnt, gntb, cdep = mysetup(chain)
+    assert cdep.call().maximum_deposit_amount() == 0
+    limit = 1000
+    chain.wait.for_receipt(
+        cdep.transact({'from': factory}).setMaximumDepositAmount(limit))
+    assert cdep.call().maximum_deposit_amount() == limit
+
+    user_addr = tester.accounts[0]
+    with pytest.raises(TransactionFailed):
+        do_deposit_223(chain, gnt, gntb, cdep, user_addr, limit + 1)
+    do_deposit_223(chain, gnt, gntb, cdep, user_addr, limit)
+    with pytest.raises(TransactionFailed):
+        do_deposit_223(chain, gnt, gntb, cdep, user_addr, 1)
+    assert cdep.call().balanceOf(user_addr) == limit
+    chain.wait.for_receipt(
+        cdep.transact({'from': user_addr}).unlock())
+    locked_until = cdep.call().getTimelock(user_addr)
+    while blockTimestamp(chain) < locked_until:
+        chain.web3.testing.mine(1)
+    chain.wait.for_receipt(
+        cdep.transact({'from': user_addr}).withdraw(user_addr))
+    do_deposit_223(chain, gnt, gntb, cdep, user_addr, limit)
+
+
+def test_total_deposits_limit(chain):
+    factory, concent_addr, gnt, gntb, cdep = mysetup(chain)
+    assert cdep.call().maximum_deposits_total() == 0
+    limit = 1000
+    half_limit = limit // 2
+    chain.wait.for_receipt(
+        cdep.transact({'from': factory}).setMaximumDepositsTotal(limit))
+    assert cdep.call().maximum_deposits_total() == limit
+
+    user_addr1 = tester.accounts[0]
+    assert cdep.call().isDepositPossible(user_addr1, half_limit)
+    do_deposit_223(chain, gnt, gntb, cdep, user_addr1, half_limit)
+    assert cdep.call().maximum_deposits_total() == limit
+
+    user_addr2 = tester.accounts[1]
+    assert cdep.call().isDepositPossible(user_addr2, half_limit)
+    do_deposit_223(chain, gnt, gntb, cdep, user_addr2, half_limit)
+
+    user_addr3 = tester.accounts[2]
+    assert not cdep.call().isDepositPossible(user_addr3, 1)
+    with pytest.raises(TransactionFailed):
+        do_deposit_223(chain, gnt, gntb, cdep, user_addr3, 1)
+
+
+def test_reimburse_limit(chain):
+    factory, concent_addr, gnt, gntb, cdep = mysetup(chain)
+    assert cdep.call().daily_reimbursement_limit() == 0
+    limit = 1000
+    chain.wait.for_receipt(
+        cdep.transact({'from': factory}).setDailyReimbursementLimit(limit))
+    assert cdep.call().daily_reimbursement_limit() == limit
+
+    user_addr = tester.accounts[0]
+    do_deposit_223(chain, gnt, gntb, cdep, user_addr, 2 * limit)
+    chain.wait.for_receipt(
+        cdep.transact({'from': concent_addr}).reimburseForCommunication(
+            user_addr,
+            limit))
+    with pytest.raises(TransactionFailed):
+        chain.wait.for_receipt(
+            cdep.transact({'from': concent_addr}).reimburseForCommunication(
+                user_addr,
+                1))
+
+    current_day = blockTimestamp(chain) // days(1)
+    while blockTimestamp(chain) // days(1) == current_day:
+        chain.web3.testing.mine(1)
+    chain.wait.for_receipt(
+        cdep.transact({'from': concent_addr}).reimburseForCommunication(
+            user_addr,
+            limit))
+
+
 def blockTimestamp(chain):
     height = chain.web3.eth.blockNumber
     block = chain.web3.eth.getBlock(height)
