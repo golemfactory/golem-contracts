@@ -195,7 +195,7 @@
       }
     },
     "contracts_source_dirs": [
-      "./contracts"
+      "./truffle/contracts"
     ],
     "import_remappings": []
   },

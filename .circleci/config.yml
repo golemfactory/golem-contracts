@@ -38,5 +38,5 @@ jobs:
                curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
                sudo apt-get install nodejs
                cd truffle
-               npm install truffle
+               npm install
                node_modules/.bin/truffle test
