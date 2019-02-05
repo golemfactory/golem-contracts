@@ -2,7 +2,9 @@ const truffleAssert = require('truffle-assertions');
 
 const setup = require('./setup')
 
-contract("Faucet", async accounts => {
+contract("Faucet", async accounts_ => {
+  // accounts_ are shared across all tests (even from different files)
+  let accounts = accounts_.slice();
   let golemfactory = accounts.pop();
   let gnt;
   let faucet;

@@ -4,7 +4,9 @@ const BN = require('bn.js');
 
 const setup = require('./setup');
 
-contract("GolemNetworkTokenBatching", async accounts => {
+contract("GolemNetworkTokenBatching", async accounts_ => {
+  // accounts_ are shared across all tests (even from different files)
+  let accounts = accounts_.slice();
   let golemfactory = accounts.pop();
   let addr = accounts.pop();
   let gnt;
@@ -49,6 +51,11 @@ contract("GolemNetworkTokenBatching", async accounts => {
     await truffleAssert.reverts(gntb.withdrawTo(0, other, {from: addr}));
   });
 
+  it("withdraw to zero address fails", async () => {
+    let zeroAddr = '0x' + '0'.repeat(40);
+    await truffleAssert.reverts(gntb.withdrawTo(124, zeroAddr, {from: addr}));
+  });
+
   it("batch transfer to self fails", async () => {
     let payments = encodePayments([[addr, new BN('65536', 10)]]);
     let closureTime = 321;
@@ -64,6 +71,7 @@ contract("GolemNetworkTokenBatching", async accounts => {
 
   it("batch transfer", async () => {
     let payments = [];
+    assert.isAtLeast(accounts.length, 4);
     for (let i = 0; i < 4; i++) {
       assert.equal(0, await gntb.balanceOf(accounts[i]));
       payments.push([accounts[i], new BN('1'.repeat(i+1), 10)]);
@@ -75,7 +83,7 @@ contract("GolemNetworkTokenBatching", async accounts => {
       truffleAssert.eventEmitted(tx, 'BatchTransfer', (ev) => {
         return ev.from == addr &&
           ev.to == payments[i][0] &&
-          ev.value.eq(payments[i][1]) && 
+          ev.value.eq(payments[i][1]) &&
           ev.closureTime == closureTime;
       })
       assert.isTrue(payments[i][1].eq(await gntb.balanceOf(payments[i][0])));
