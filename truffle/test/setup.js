@@ -1,5 +1,6 @@
 const GolemNetworkToken = artifacts.require("GolemNetworkToken");
 const GolemNetworkTokenBatching = artifacts.require("GolemNetworkTokenBatching");
+const GNTDeposit = artifacts.require("GNTDeposit");
 const Faucet = artifacts.require("Faucet");
 
 async function deployGntAndFaucet(golemfactory) {
@@ -30,8 +31,11 @@ async function deployGntb(gntAddress) {
 }
 
 async function convertGnt(address, amount, gnt, gntb) {
-  await gntb.openGate({from: address});
   let gateAddress = await gntb.getGateAddress(address);
+  if (gateAddress == '0x' + '0'.repeat(40)) {
+    await gntb.openGate({from: address});
+    gateAddress = await gntb.getGateAddress(address);
+  }
   await gnt.transfer(gateAddress, amount, {from: address});
   await gntb.transferFromGate({from: address});
 }
@@ -42,9 +46,23 @@ async function createGntb(address, gnt, gntb, faucet) {
   await convertGnt(address, amount, gnt, gntb);
 }
 
+async function deployAll(golemfactory, concent, withdrawalDelay) {
+  let [gnt, faucet] = await deployGntAndFaucet(golemfactory);
+  let gntb = await deployGntb(gnt.address);
+  let gntdeposit = await GNTDeposit.new(
+    gntb.address,
+    concent,
+    concent,
+    withdrawalDelay,
+    {from: golemfactory},
+  );
+  return [gnt, faucet, gntb, gntdeposit];
+}
+
 module.exports = {
   deployGntAndFaucet,
   deployGntb,
+  deployAll,
   convertGnt,
   createGntb,
 }
