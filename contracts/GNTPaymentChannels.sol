@@ -1,4 +1,4 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.5.3;
 
 import "./GolemNetworkTokenBatching.sol";
 
@@ -23,7 +23,7 @@ contract GNTPaymentChannels is ReceivingContract {
     event TimeLocked(address indexed _owner, address indexed _receiver);
     event Close(address indexed _owner, address indexed _receiver);
 
-    function GNTPaymentChannels(address _token, uint256 _close_delay) public {
+    constructor(address _token, uint256 _close_delay) public {
         token = GolemNetworkTokenBatching(_token);
         close_delay = _close_delay;
     }
@@ -68,13 +68,13 @@ contract GNTPaymentChannels is ReceivingContract {
         pure
         returns (bool)
     {
-        return _owner == ecrecover(keccak256("\x19Ethereum Signed Message:\n72", _owner, _receiver, _value), _v, _r, _s);
+        return _owner == ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n72", _owner, _receiver, _value)), _v, _r, _s);
     }
 
     // functions that modify state
 
     // Fund existing channel; can be done multiple times.
-    function onTokenReceived(address _owner, uint256 _value, bytes _data) public onlyToken {
+    function onTokenReceived(address _owner, uint256 _value, bytes memory _data) public onlyToken {
         require(_data.length == 20);
         address receiver;
         assembly {
@@ -143,6 +143,6 @@ contract GNTPaymentChannels is ReceivingContract {
         view
         returns (PaymentChannel storage)
     {
-        return channels[keccak256(owner, receiver)];
+        return channels[keccak256(abi.encodePacked(owner, receiver))];
     }
 }

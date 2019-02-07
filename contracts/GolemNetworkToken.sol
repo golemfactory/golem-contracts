@@ -1,11 +1,11 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.5.3;
 
 contract MigrationAgent {
-    function migrateFrom(address _from, uint256 _value);
+    function migrateFrom(address _from, uint256 _value) public;
 }
 
 contract GNTAllocation {
-    function GNTAllocation(address _golemFactory) {}
+    constructor(address _golemFactory) public {}
 }
 
 /// @title Golem Network Token (GNT) - crowdfunding code for Golem Project
@@ -27,7 +27,7 @@ contract GolemNetworkToken {
     bool public funding = true;
 
     // Receives ETH and its own GNT endowment.
-    address public golemFactory;
+    address payable public golemFactory;
 
     // Has control over token migration to next version of token.
     address public migrationMaster;
@@ -46,13 +46,13 @@ contract GolemNetworkToken {
     event Migrate(address indexed _from, address indexed _to, uint256 _value);
     event Refund(address indexed _from, uint256 _value);
 
-    function GolemNetworkToken(address _golemFactory,
-                               address _migrationMaster,
-                               uint256 _fundingStartBlock,
-                               uint256 _fundingEndBlock) {
+    constructor(address payable _golemFactory,
+                address _migrationMaster,
+                uint256 _fundingStartBlock,
+                uint256 _fundingEndBlock) public {
 
-        if (_golemFactory == 0) revert();
-        if (_migrationMaster == 0) revert();
+        if (_golemFactory == address(0)) revert();
+        if (_migrationMaster == address(0)) revert();
         if (_fundingStartBlock <= block.number) revert();
         if (_fundingEndBlock   <= _fundingStartBlock) revert();
 
@@ -70,16 +70,16 @@ contract GolemNetworkToken {
     /// @param _to The address of the tokens recipient
     /// @param _value The amount of token to be transferred
     /// @return Whether the transfer was successful or not
-    function transfer(address _to, uint256 _value) returns (bool) {
+    function transfer(address _to, uint256 _value) public returns (bool) {
         // Abort if not in Operational state.
         if (funding) revert();
 
-        var senderBalance = balances[msg.sender];
+        uint256 senderBalance = balances[msg.sender];
         if (senderBalance >= _value && _value > 0) {
             senderBalance -= _value;
             balances[msg.sender] = senderBalance;
             balances[_to] += _value;
-            Transfer(msg.sender, _to, _value);
+            emit Transfer(msg.sender, _to, _value);
             return true;
         }
         return false;
@@ -101,7 +101,7 @@ contract GolemNetworkToken {
     function migrate(uint256 _value) external {
         // Abort if not in Operational Migration state.
         if (funding) revert();
-        if (migrationAgent == 0) revert();
+        if (migrationAgent == address(0)) revert();
 
         // Validate input value.
         if (_value == 0) revert();
@@ -111,7 +111,7 @@ contract GolemNetworkToken {
         totalTokens -= _value;
         totalMigrated += _value;
         MigrationAgent(migrationAgent).migrateFrom(msg.sender, _value);
-        Migrate(msg.sender, migrationAgent, _value);
+        emit Migrate(msg.sender, migrationAgent, _value);
     }
 
     /// @notice Set address of migration target contract and enable migration
@@ -122,14 +122,14 @@ contract GolemNetworkToken {
     function setMigrationAgent(address _agent) external {
         // Abort if not in Operational Normal state.
         if (funding) revert();
-        if (migrationAgent != 0) revert();
+        if (migrationAgent != address(0)) revert();
         if (msg.sender != migrationMaster) revert();
         migrationAgent = _agent;
     }
 
     function setMigrationMaster(address _master) external {
         if (msg.sender != migrationMaster) revert();
-        if (_master == 0) revert();
+        if (_master == address(0)) revert();
         migrationMaster = _master;
     }
 
@@ -151,14 +151,14 @@ contract GolemNetworkToken {
         if (msg.value > (tokenCreationCap - totalTokens) / tokenCreationRate)
             revert();
 
-        var numTokens = msg.value * tokenCreationRate;
+        uint256 numTokens = msg.value * tokenCreationRate;
         totalTokens += numTokens;
 
         // Assign new tokens to the sender
         balances[msg.sender] += numTokens;
 
         // Log token creation event
-        Transfer(0, msg.sender, numTokens);
+        emit Transfer(address(0), msg.sender, numTokens);
     }
 
     /// @notice Finalize crowdfunding
@@ -185,11 +185,11 @@ contract GolemNetworkToken {
         uint256 additionalTokens =
             totalTokens * percentOfTotal / (100 - percentOfTotal);
         totalTokens += additionalTokens;
-        balances[lockedAllocation] += additionalTokens;
-        Transfer(0, lockedAllocation, additionalTokens);
+        balances[address(lockedAllocation)] += additionalTokens;
+        emit Transfer(address(0), address(lockedAllocation), additionalTokens);
 
         // Transfer ETH to the Golem Factory address.
-        if (!golemFactory.send(this.balance)) revert();
+        if (!golemFactory.send(address(this).balance)) revert();
     }
 
     /// @notice Get back the ether sent during the funding in case the funding
@@ -201,13 +201,13 @@ contract GolemNetworkToken {
         if (block.number <= fundingEndBlock) revert();
         if (totalTokens >= tokenCreationMin) revert();
 
-        var gntValue = balances[msg.sender];
+        uint256 gntValue = balances[msg.sender];
         if (gntValue == 0) revert();
         balances[msg.sender] = 0;
         totalTokens -= gntValue;
 
-        var ethValue = gntValue / tokenCreationRate;
-        Refund(msg.sender, ethValue);
+        uint256 ethValue = gntValue / tokenCreationRate;
+        emit Refund(msg.sender, ethValue);
         if (!msg.sender.send(ethValue)) revert();
     }
 }
