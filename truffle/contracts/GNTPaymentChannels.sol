@@ -68,7 +68,7 @@ contract GNTPaymentChannels is ReceivingContract {
         pure
         returns (bool)
     {
-        return _owner == ecrecover(keccak256(_owner, _receiver, _value), _v, _r, _s);
+        return _owner == ecrecover(keccak256("\x19Ethereum Signed Message:\n72", _owner, _receiver, _value), _v, _r, _s);
     }
 
     // functions that modify state
