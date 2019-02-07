@@ -2,7 +2,7 @@ version: 2
 jobs:
    build:
      docker:
-       - image: circleci/python:3.6-stretch
+       - image: circleci/node:9.11.1
        - image: trufflesuite/ganache-cli
      environment:
        LC_ALL: C.UTF-8
@@ -10,33 +10,10 @@ jobs:
      steps:
        - checkout
        - run:
-            name: install dependencies
-            command: |
-                sudo apt-get install -y libgmp3-dev libsecp256k1-0 libsecp256k1-dev
-                wget https://github.com/ethereum/solidity/releases/download/v0.4.21/solc-static-linux
-                sudo mv solc-static-linux /usr/local/bin/solc
-                sudo chmod +x /usr/local/bin/solc
-                python3 -m venv venv
-                . venv/bin/activate
-                pip install --upgrade pip
-                pip install -r requirements.txt
-
-       - run:
-           name: compile project
+           name: install project
            command: |
-               . venv/bin/activate
-               populus compile
+               npm install
        - run:
            name: run tests
            command: |
-               . venv/bin/activate
-               pytest
-
-       - run:
-           name: install and run truffle
-           command: |
-               curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
-               sudo apt-get install nodejs
-               cd truffle
-               npm install
                node_modules/.bin/truffle test

@@ -1,8 +1,2 @@
 build
-.cache
-*.pyc
-/README.html
-venv
-.mypy_cache
-.pytest_cache
-truffle/node_modules
+node_modules
