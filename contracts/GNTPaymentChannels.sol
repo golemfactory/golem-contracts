@@ -74,11 +74,12 @@ contract GNTPaymentChannels is ReceivingContract {
     // functions that modify state
 
     // Fund existing channel; can be done multiple times.
-    function onTokenReceived(address _owner, uint256 _value, bytes memory _data) public onlyToken {
+    function onTokenReceived(address _owner, uint256 _value, bytes calldata _data) external onlyToken {
         require(_data.length == 20);
+        bytes memory data = _data;
         address receiver;
         assembly {
-          receiver := div(mload(add(_data, 0x20)), 0x1000000000000000000000000)
+          receiver := div(mload(add(data, 0x20)), 0x1000000000000000000000000)
         }
         PaymentChannel storage ch = _getChannel(_owner, receiver);
         ch.deposited += _value;

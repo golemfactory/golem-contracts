@@ -137,7 +137,7 @@ contract GNTDeposit is ReceivingContract, Ownable {
         emit Lock(msg.sender);
     }
 
-    function onTokenReceived(address _from, uint256 _amount, bytes memory /* _data */) public onlyToken {
+    function onTokenReceived(address _from, uint256 _amount, bytes calldata /* _data */) external onlyToken {
         // Pass 0 as the amount since this check happens post transfer, thus
         // amount is already accounted for in the balance
         require(!_isTotalDepositsLimitHit(0));
