@@ -1,7 +1,7 @@
 // Copyright 2018 Golem Factory
 // Licensed under the GNU General Public License v3. See the LICENSE file.
 
-pragma solidity ^0.4.21;
+pragma solidity ^0.5.3;
 
 import "./open_zeppelin/BurnableToken.sol";
 import "./open_zeppelin/StandardToken.sol";
@@ -16,7 +16,7 @@ contract Gate {
     address private PROXY;
 
     /// Gates are to be created by the TokenProxy.
-    function Gate(ERC20Basic _token, address _proxy) public {
+    constructor(ERC20Basic _token, address _proxy) public {
         TOKEN = _token;
         PROXY = _proxy;
     }
@@ -62,7 +62,7 @@ contract TokenProxy is StandardToken, BurnableToken {
 
     event Mint(address indexed to, uint256 amount);
 
-    function TokenProxy(ERC20Basic _token) public {
+    constructor(ERC20Basic _token) public {
         TOKEN = _token;
     }
 
@@ -75,10 +75,10 @@ contract TokenProxy is StandardToken, BurnableToken {
         address user = msg.sender;
 
         // Do not allow creating more than one Gate per User.
-        require(gates[user] == 0);
+        require(gates[user] == address(0));
 
         // Create new Gate.
-        address gate = new Gate(TOKEN, this);
+        address gate = address(new Gate(TOKEN, address(this)));
 
         // Remember User - Gate relationship.
         gates[user] = gate;
@@ -92,7 +92,7 @@ contract TokenProxy is StandardToken, BurnableToken {
         address gate = gates[user];
 
         // Make sure the User's Gate exists.
-        require(gate != 0);
+        require(gate != address(0));
 
         uint256 value = TOKEN.balanceOf(gate);
 

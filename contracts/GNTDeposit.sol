@@ -1,4 +1,4 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.5.3;
 
 import "./open_zeppelin/Ownable.sol";
 import "./GolemNetworkTokenBatching.sol";
@@ -42,7 +42,7 @@ contract GNTDeposit is ReceivingContract, Ownable {
     event ReimburseForVerificationCosts(address indexed _from, uint256 _amount, bytes32 _subtask_id);
     event ReimburseForCommunication(address indexed _from, uint256 _amount);
 
-    function GNTDeposit(
+    constructor(
         GolemNetworkTokenBatching _token,
         address _concent,
         address _coldwallet,
@@ -137,7 +137,7 @@ contract GNTDeposit is ReceivingContract, Ownable {
         emit Lock(msg.sender);
     }
 
-    function onTokenReceived(address _from, uint256 _amount, bytes /* _data */) public onlyToken {
+    function onTokenReceived(address _from, uint256 _amount, bytes calldata /* _data */) external onlyToken {
         // Pass 0 as the amount since this check happens post transfer, thus
         // amount is already accounted for in the balance
         require(!_isTotalDepositsLimitHit(0));

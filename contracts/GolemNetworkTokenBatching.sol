@@ -1,7 +1,7 @@
 // Copyright 2018 Golem Factory
 // Licensed under the GNU General Public License v3. See the LICENSE file.
 
-pragma solidity ^0.4.21;
+pragma solidity ^0.5.3;
 
 import "./ReceivingContract.sol";
 import "./TokenProxy.sol";
@@ -23,10 +23,10 @@ contract GolemNetworkTokenBatching is TokenProxy {
     event BatchTransfer(address indexed from, address indexed to, uint256 value,
         uint64 closureTime);
 
-    function GolemNetworkTokenBatching(ERC20Basic _gntToken) TokenProxy(_gntToken) public {
+    constructor(ERC20Basic _gntToken) TokenProxy(_gntToken) public {
     }
 
-    function batchTransfer(bytes32[] payments, uint64 closureTime) external {
+    function batchTransfer(bytes32[] calldata payments, uint64 closureTime) external {
         require(block.timestamp >= closureTime);
 
         uint balance = balances[msg.sender];
@@ -36,7 +36,7 @@ contract GolemNetworkTokenBatching is TokenProxy {
             // first 96 bits (12 bytes) is a value,
             // following 160 bits (20 bytes) is an address.
             bytes32 payment = payments[i];
-            address addr = address(payment);
+            address addr = address(uint256(payment));
             require(addr != address(0) && addr != msg.sender);
             uint v = uint(payment) / 2**160;
             require(v <= balance);
@@ -48,7 +48,7 @@ contract GolemNetworkTokenBatching is TokenProxy {
         balances[msg.sender] = balance;
     }
 
-    function transferAndCall(address to, uint256 value, bytes data) external {
+    function transferAndCall(address to, uint256 value, bytes calldata data) external {
       // Transfer always returns true so no need to check return value
       transfer(to, value);
 

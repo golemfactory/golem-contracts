@@ -1,4 +1,4 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.5.3;
 
 import "./GolemNetworkToken.sol";
 
@@ -7,7 +7,7 @@ import "./GolemNetworkToken.sol";
 contract Faucet {
     GolemNetworkToken public token;
 
-    function Faucet(address _token) {
+    constructor(address _token) public {
         token = GolemNetworkToken(_token);
     }
 
