@@ -33,22 +33,22 @@ contract("GNTDeposit", async accounts_ => {
   });
 
   it("not a token calling onTokenReceived fails", async () => {
-    await truffleAssert.reverts(gntdeposit.onTokenReceived(other, 124, [], {from: other}));
+    await truffleAssert.reverts(gntdeposit.onTokenReceived(other, 124, [], {from: other}), "Token only method");
   });
 
   it("withdraw", async () => {
     let balance = await gntdeposit.balanceOf.call(user);
     assert.isFalse(await gntdeposit.isUnlocked.call(user));
-    await truffleAssert.reverts(gntdeposit.withdraw(other, {from: user}));
+    await truffleAssert.reverts(gntdeposit.withdraw(other, {from: user}), "Deposit is not unlocked");
 
     await gntdeposit.unlock({from: user});
     assert.isFalse(await gntdeposit.isUnlocked.call(user));
-    await truffleAssert.reverts(gntdeposit.withdraw(other, {from: user}));
+    await truffleAssert.reverts(gntdeposit.withdraw(other, {from: user}), "Deposit is not unlocked");
 
     let lockedUntil = await gntdeposit.getTimelock.call(user);
     await helpers.time.increaseTo(lockedUntil - 1);
     assert.isFalse(await gntdeposit.isUnlocked.call(user));
-    await truffleAssert.reverts(gntdeposit.withdraw(other, {from: user}));
+    await truffleAssert.reverts(gntdeposit.withdraw(other, {from: user}), "Deposit is not unlocked");
 
     await helpers.time.increase(2);
     assert.isTrue(await gntdeposit.isUnlocked.call(user));
@@ -69,7 +69,7 @@ contract("GNTDeposit", async accounts_ => {
   it("burn", async () => {
     let amount = new BN(124);
     // not Concent
-    await truffleAssert.reverts(gntdeposit.burn(user, amount, {from: user}));
+    await truffleAssert.reverts(gntdeposit.burn(user, amount, {from: user}), "Concent only method");
 
     await gntdeposit.burn(user, amount, {from: concent});
     assert.isTrue(depositBalance.sub(amount).eq(await gntdeposit.balanceOf(user)));
@@ -78,7 +78,7 @@ contract("GNTDeposit", async accounts_ => {
   async function reimbursePairImpl(fnName, args, eventName, evFunction) {
     let amount = new BN(124);
     // not Concent
-    await truffleAssert.reverts(gntdeposit[fnName](user, other, amount, ...args, {from: other}));
+    await truffleAssert.reverts(gntdeposit[fnName](user, other, amount, ...args, {from: other}), "Concent only method");
 
     let tx = await gntdeposit[fnName](user, other, amount, ...args, {from: concent});
     assert.isTrue(depositBalance.sub(amount).eq(await gntdeposit.balanceOf(user)));
@@ -109,7 +109,7 @@ contract("GNTDeposit", async accounts_ => {
   async function reimburseSingleImpl(fnName, args, eventName, evFunction) {
     let amount = new BN(124);
     // not Concent
-    await truffleAssert.reverts(gntdeposit[fnName](user, amount, ...args, {from: other}));
+    await truffleAssert.reverts(gntdeposit[fnName](user, amount, ...args, {from: other}), "Concent only method");
 
     let tx = await gntdeposit[fnName](user, amount, ...args, {from: concent});
     assert.isTrue(depositBalance.sub(amount).eq(await gntdeposit.balanceOf(user)));
@@ -137,8 +137,8 @@ contract("GNTDeposit", async accounts_ => {
 
   it("transfer Concent", async () => {
     assert.equal(concent, await gntdeposit.concent.call());
-    await truffleAssert.reverts(gntdeposit.transferConcent(user, {from: user}));
-    await truffleAssert.reverts(gntdeposit.transferConcent(user, {from: concent}));
+    await truffleAssert.reverts(gntdeposit.transferConcent(user, {from: user}), "Owner only method");
+    await truffleAssert.reverts(gntdeposit.transferConcent(user, {from: concent}), "Owner only method");
 
     await gntdeposit.transferConcent(other, {from: golemfactory});
     assert.equal(other, await gntdeposit.concent.call());
@@ -146,8 +146,8 @@ contract("GNTDeposit", async accounts_ => {
 
   it("transfer coldwallet", async () => {
     assert.equal(concent, await gntdeposit.coldwallet.call());
-    await truffleAssert.reverts(gntdeposit.transferColdwallet(user, {from: user}));
-    await truffleAssert.reverts(gntdeposit.transferColdwallet(user, {from: concent}));
+    await truffleAssert.reverts(gntdeposit.transferColdwallet(user, {from: user}), "Owner only method");
+    await truffleAssert.reverts(gntdeposit.transferColdwallet(user, {from: concent}), "Owner only method");
 
     await gntdeposit.transferColdwallet(other, {from: golemfactory});
     assert.equal(other, await gntdeposit.coldwallet.call());
@@ -156,15 +156,15 @@ contract("GNTDeposit", async accounts_ => {
   it("deposit limit", async () => {
     assert.equal(0, await gntdeposit.maximum_deposit_amount.call());
     let limit = new BN(1000);
-    await truffleAssert.reverts(gntdeposit.setMaximumDepositAmount(limit, {from: other}));
-    await truffleAssert.reverts(gntdeposit.setMaximumDepositAmount(limit, {from: concent}));
+    await truffleAssert.reverts(gntdeposit.setMaximumDepositAmount(limit, {from: other}), "Owner only method");
+    await truffleAssert.reverts(gntdeposit.setMaximumDepositAmount(limit, {from: concent}), "Owner only method");
     await gntdeposit.setMaximumDepositAmount(limit, {from: golemfactory});
     assert.isTrue(limit.eq(await gntdeposit.maximum_deposit_amount.call()));
 
     await setup.createGntb(other, gnt, gntb, faucet);
-    await truffleAssert.reverts(gntb.transferAndCall(gntdeposit.address, limit.addn(1), [], {from: other}));
+    await truffleAssert.reverts(gntb.transferAndCall(gntdeposit.address, limit.addn(1), [], {from: other}), "Maximum deposit limit hit");
     await gntb.transferAndCall(gntdeposit.address, limit, [], {from: other});
-    await truffleAssert.reverts(gntb.transferAndCall(gntdeposit.address, new BN(1), [], {from: other}));
+    await truffleAssert.reverts(gntb.transferAndCall(gntdeposit.address, new BN(1), [], {from: other}), "Maximum deposit limit hit");
   });
 
   it("total deposit limit", async () => {
@@ -177,29 +177,29 @@ contract("GNTDeposit", async accounts_ => {
 
     assert.equal(0, await gntdeposit.maximum_deposits_total.call());
     let limit = new BN(1000);
-    await truffleAssert.reverts(gntdeposit.setMaximumDepositsTotal(limit, {from: other}));
-    await truffleAssert.reverts(gntdeposit.setMaximumDepositsTotal(limit, {from: concent}));
+    await truffleAssert.reverts(gntdeposit.setMaximumDepositsTotal(limit, {from: other}), "Owner only method");
+    await truffleAssert.reverts(gntdeposit.setMaximumDepositsTotal(limit, {from: concent}), "Owner only method");
     await gntdeposit.setMaximumDepositsTotal(limit, {from: golemfactory});
     assert.isTrue(limit.eq(await gntdeposit.maximum_deposits_total.call()));
 
     await setup.createGntb(other, gnt, gntb, faucet);
     await gntb.transferAndCall(gntdeposit.address, limit.subn(1), [], {from: user});
-    await truffleAssert.reverts(gntb.transferAndCall(gntdeposit.address, new BN(2), [], {from: other}));
+    await truffleAssert.reverts(gntb.transferAndCall(gntdeposit.address, new BN(2), [], {from: other}), "Total deposits limit hit");
     await gntb.transferAndCall(gntdeposit.address, new BN(1), [], {from: other});
   });
 
   it("reimburse limit", async () => {
     assert.equal(0, await gntdeposit.daily_reimbursement_limit.call());
     let limit = new BN(1000);
-    await truffleAssert.reverts(gntdeposit.setDailyReimbursementLimit(limit, {from: other}));
-    await truffleAssert.reverts(gntdeposit.setDailyReimbursementLimit(limit, {from: concent}));
+    await truffleAssert.reverts(gntdeposit.setDailyReimbursementLimit(limit, {from: other}), "Owner only method");
+    await truffleAssert.reverts(gntdeposit.setDailyReimbursementLimit(limit, {from: concent}), "Owner only method");
     await gntdeposit.setDailyReimbursementLimit(limit, {from: golemfactory});
     assert.isTrue(limit.eq(await gntdeposit.daily_reimbursement_limit.call()));
 
-    await truffleAssert.reverts(gntdeposit.reimburseForCommunication(user, limit.addn(1), {from: concent}));
+    await truffleAssert.reverts(gntdeposit.reimburseForCommunication(user, limit.addn(1), {from: concent}), "Daily reimbursement limit hit");
     await gntdeposit.reimburseForCommunication(user, limit.subn(1), {from: concent});
     await gntdeposit.reimburseForCommunication(user, new BN(1), {from: concent});
-    await truffleAssert.reverts(gntdeposit.reimburseForCommunication(user, new BN(1), {from: concent}));
+    await truffleAssert.reverts(gntdeposit.reimburseForCommunication(user, new BN(1), {from: concent}), "Daily reimbursement limit hit");
     await helpers.time.increase(24 * 60 * 60 + 1);
     await gntdeposit.reimburseForCommunication(user, new BN(1), {from: concent});
   });
