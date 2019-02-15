@@ -59,17 +59,17 @@ contract GNTDeposit is ReceivingContract, Ownable {
     // modifiers
 
     modifier onlyUnlocked() {
-        require(isUnlocked(msg.sender));
+        require(isUnlocked(msg.sender), "Deposit is not unlocked");
         _;
     }
 
     modifier onlyConcent() {
-        require(msg.sender == concent);
+        require(msg.sender == concent, "Concent only method");
         _;
     }
 
     modifier onlyToken() {
-        require(msg.sender == address(token));
+        require(msg.sender == address(token), "Token only method");
         _;
     }
 
@@ -102,13 +102,13 @@ contract GNTDeposit is ReceivingContract, Ownable {
     // management
 
     function transferConcent(address _newConcent) onlyOwner external {
-        require(_newConcent != address(0));
+        require(_newConcent != address(0), "New concent address cannot be 0");
         emit ConcentTransferred(concent, _newConcent);
         concent = _newConcent;
     }
 
     function transferColdwallet(address _newColdwallet) onlyOwner external {
-        require(_newColdwallet != address(0));
+        require(_newColdwallet != address(0), "New coldwallet address cannot be 0");
         emit ColdwalletTransferred(coldwallet, _newColdwallet);
         coldwallet = _newColdwallet;
     }
@@ -140,8 +140,8 @@ contract GNTDeposit is ReceivingContract, Ownable {
     function onTokenReceived(address _from, uint256 _amount, bytes calldata /* _data */) external onlyToken {
         // Pass 0 as the amount since this check happens post transfer, thus
         // amount is already accounted for in the balance
-        require(!_isTotalDepositsLimitHit(0));
-        require(!_isMaximumDepositLimitHit(_from, _amount));
+        require(!_isTotalDepositsLimitHit(0), "Total deposits limit hit");
+        require(!_isMaximumDepositLimitHit(_from, _amount), "Maximum deposit limit hit");
         balances[_from] += _amount;
         locked_until[_from] = 0;
         emit Deposit(_from, _amount);
@@ -156,7 +156,7 @@ contract GNTDeposit is ReceivingContract, Ownable {
     }
 
     function burn(address _whom, uint256 _amount) onlyConcent external {
-        require(balances[_whom] >= _amount);
+        require(balances[_whom] >= _amount, "Not enough funds to burn");
         balances[_whom] -= _amount;
         if (balances[_whom] == 0) {
             locked_until[_whom] = 0;
@@ -217,13 +217,13 @@ contract GNTDeposit is ReceivingContract, Ownable {
     // internals
 
     function _reimburse(address _from, address _to, uint256 _amount) private {
-        require(balances[_from] >= _amount);
+        require(balances[_from] >= _amount, "Not enough funds to reimburse");
         if (daily_reimbursement_limit != 0) {
             if (current_reimbursement_day != block.timestamp / 1 days) {
                 current_reimbursement_day = block.timestamp / 1 days;
                 current_reimbursement_sum = 0;
             }
-            require(current_reimbursement_sum + _amount <= daily_reimbursement_limit);
+            require(current_reimbursement_sum + _amount <= daily_reimbursement_limit, "Daily reimbursement limit hit");
             current_reimbursement_sum += _amount;
         }
         balances[_from] -= _amount;
