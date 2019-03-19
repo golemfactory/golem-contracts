@@ -169,11 +169,15 @@ contract GNTDeposit is ReceivingContract, Ownable {
         address _requestor,
         address _provider,
         uint256 _amount,
-        bytes32 _subtask_id
+        bytes32 _subtask_id,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
     )
         onlyConcent
         external
     {
+        require(_isValidSignature(_requestor, _provider, _amount, _subtask_id, _v, _r, _s), "Invalid signature");
         _reimburse(_requestor, _provider, _amount);
         emit ReimburseForSubtask(_requestor, _provider, _amount, _subtask_id);
     }
@@ -181,24 +185,37 @@ contract GNTDeposit is ReceivingContract, Ownable {
     function reimburseForNoPayment(
         address _requestor,
         address _provider,
-        uint256 _amount,
+        uint256[] calldata _amount,
+        bytes32[] calldata _subtask_id,
+        uint8[] calldata _v,
+        bytes32[] calldata _r,
+        bytes32[] calldata _s,
         uint256 _closure_time
     )
         onlyConcent
         external
     {
-        _reimburse(_requestor, _provider, _amount);
-        emit ReimburseForNoPayment(_requestor, _provider, _amount, _closure_time);
+        uint256 total_amount = 0;
+        for (uint256 i = 0; i < _amount.length; i++) {
+          require(_isValidSignature(_requestor, _provider, _amount[i], _subtask_id[i], _v[i], _r[i], _s[i]), "Invalid signature");
+          total_amount += _amount[i];
+        }
+        _reimburse(_requestor, _provider, total_amount);
+        emit ReimburseForNoPayment(_requestor, _provider, total_amount, _closure_time);
     }
 
     function reimburseForVerificationCosts(
         address _from,
         uint256 _amount,
-        bytes32 _subtask_id
+        bytes32 _subtask_id,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
     )
         onlyConcent
         external
     {
+        require(_isValidSignature(_from, address(this), _amount, _subtask_id, _v, _r, _s), "Invalid signature");
         _reimburse(_from, coldwallet, _amount);
         emit ReimburseForVerificationCosts(_from, _amount, _subtask_id);
     }
@@ -247,6 +264,18 @@ contract GNTDeposit is ReceivingContract, Ownable {
         }
         // SafeMath is not required here, as these numbers won't exceed token's total supply
         return balances[_owner] + _amount > maximum_deposit_amount;
+    }
+
+    function _isValidSignature(
+        address _from,
+        address _to,
+        uint256 _amount,
+        bytes32 _subtask_id,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
+    ) public pure returns (bool) {
+        return _from == ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n104", _from, _to, _amount, _subtask_id)), _v, _r, _s);
     }
 
 }

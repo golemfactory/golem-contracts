@@ -75,8 +75,16 @@ contract("GNTDeposit", async accounts_ => {
     assert.isTrue(depositBalance.sub(amount).eq(await gntdeposit.balanceOf(user)));
   });
 
-  async function reimbursePairImpl(fnName, args, eventName, evFunction) {
-    let amount = new BN(124);
+  async function signMsg(msg, account) {
+      let signature = await web3.eth.sign(msg, account);
+      signature = signature.substr(2);
+      let r = '0x' + signature.substr(0, 64);
+      let s = '0x' + signature.substr(64, 64);
+      let v = (new BN(signature.substr(128, 2), 16)).addn(27);
+      return [r, s, v];
+  }
+
+  async function reimbursePairImpl(fnName, amount, args, eventName, evFunction) {
     // not Concent
     await truffleAssert.reverts(gntdeposit[fnName](user, other, amount, ...args, {from: other}), "Concent only method");
 
@@ -93,21 +101,71 @@ contract("GNTDeposit", async accounts_ => {
 
   it("reimburseForSubtask", async () => {
     let subtaskId = new Array(32);
-    subtaskId[0] = 34;
-    await reimbursePairImpl('reimburseForSubtask', [subtaskId], 'ReimburseForSubtask', (ev) => {
-      return ev._subtask_id == web3.utils.bytesToHex(subtaskId);
+    subtaskId[1] = 34;
+    subtaskId = web3.utils.bytesToHex(subtaskId);
+    let amount = new BN(124);
+    let amountBytes = amount.toBuffer('big', 32)
+    let msg = '0x' + user.substr(2) + other.substr(2) + web3.utils.bytesToHex(amountBytes).substr(2) + subtaskId.substr(2);
+    let [r, s, v] = await signMsg(msg, user);
+    await reimbursePairImpl('reimburseForSubtask', amount, [subtaskId, v, r, s], 'ReimburseForSubtask', (ev) => {
+      return ev._subtask_id == subtaskId;
     });
   });
 
   it("reimburseForNoPayment", async () => {
+    let amount1 = new BN(124);
+    let amountBytes1 = amount1.toBuffer('big', 32)
+    let subtaskId1 = new Array(32);
+    subtaskId1[0] = 34;
+    subtaskId1 = web3.utils.bytesToHex(subtaskId1);
+    let amount2 = new BN(224);
+    let amountBytes2 = amount2.toBuffer('big', 32)
+    let subtaskId2 = new Array(32);
+    subtaskId2[3] = 23;
+    subtaskId2 = web3.utils.bytesToHex(subtaskId2);
     let closureTime = new BN(44431);
-    await reimbursePairImpl('reimburseForNoPayment', [closureTime], 'ReimburseForNoPayment', (ev) => {
-      return ev._closure_time.eq(closureTime);
+
+    let msg1 = '0x' + user.substr(2) + other.substr(2) + web3.utils.bytesToHex(amountBytes1).substr(2) + subtaskId1.substr(2);
+    let [r1, s1, v1] = await signMsg(msg1, user);
+    let msg2 = '0x' + user.substr(2) + other.substr(2) + web3.utils.bytesToHex(amountBytes2).substr(2) + subtaskId2.substr(2);
+    let [r2, s2, v2] = await signMsg(msg2, user);
+
+    // not Concent
+    await truffleAssert.reverts(gntdeposit['reimburseForNoPayment'](
+      user,
+      other,
+      [amountBytes1, amountBytes2],
+      [subtaskId1, subtaskId2],
+      [v1, v2],
+      [r1, r2],
+      [s1, s2],
+      closureTime,
+      {from: other},
+    ), "Concent only method");
+
+    let tx = await gntdeposit['reimburseForNoPayment'](
+      user,
+      other,
+      [amount1, amount2],
+      [subtaskId1, subtaskId2],
+      [v1, v2],
+      [r1, r2],
+      [s1, s2],
+      closureTime,
+      {from: concent},
+    );
+    let total_amount = amount1.add(amount2);
+    assert.isTrue(depositBalance.sub(total_amount).eq(await gntdeposit.balanceOf(user)));
+    assert.isTrue(total_amount.eq(await gntb.balanceOf(other)));
+    truffleAssert.eventEmitted(tx, 'ReimburseForNoPayment', (ev) => {
+      return ev._requestor == user &&
+      ev._provider == other &&
+      ev._amount.eq(total_amount) &&
+      ev._closure_time.eq(closureTime);
     });
   });
 
-  async function reimburseSingleImpl(fnName, args, eventName, evFunction) {
-    let amount = new BN(124);
+  async function reimburseSingleImpl(fnName, amount, args, eventName, evFunction) {
     // not Concent
     await truffleAssert.reverts(gntdeposit[fnName](user, amount, ...args, {from: other}), "Concent only method");
 
@@ -122,15 +180,21 @@ contract("GNTDeposit", async accounts_ => {
   }
 
   it("reimburseForVerificationCosts", async () => {
+    let amount = new BN(124);
     let subtaskId = new Array(32);
     subtaskId[0] = 34;
-    await reimburseSingleImpl('reimburseForVerificationCosts', [subtaskId], 'ReimburseForVerificationCosts', (ev) => {
-      return ev._subtask_id == web3.utils.bytesToHex(subtaskId);
+    subtaskId = web3.utils.bytesToHex(subtaskId);
+    let amountBytes = amount.toBuffer('big', 32)
+    let msg = '0x' + user.substr(2) + gntdeposit.address.substr(2) + web3.utils.bytesToHex(amountBytes).substr(2) + subtaskId.substr(2);
+    let [r, s, v] = await signMsg(msg, user);
+    await reimburseSingleImpl('reimburseForVerificationCosts', amount, [subtaskId, v, r, s], 'ReimburseForVerificationCosts', (ev) => {
+      return ev._subtask_id == subtaskId;
     });
   });
 
   it("reimburseForCommunication", async () => {
-    await reimburseSingleImpl('reimburseForCommunication', [], 'ReimburseForCommunication', (ev) => {
+    let amount = new BN(124);
+    await reimburseSingleImpl('reimburseForCommunication', amount, [], 'ReimburseForCommunication', (ev) => {
       return true;
     });
   });
