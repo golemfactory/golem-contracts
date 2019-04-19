@@ -190,18 +190,28 @@ contract GNTDeposit is ReceivingContract, Ownable {
         uint8[] calldata _v,
         bytes32[] calldata _r,
         bytes32[] calldata _s,
+        uint256 _reimburse_amount,
         uint256 _closure_time
     )
         onlyConcent
         external
     {
-        uint256 total_amount = 0;
+        require(_amount.length == _subtask_id.length);
+        require(_amount.length == _v.length);
+        require(_amount.length == _r.length);
+        require(_amount.length == _s.length);
+        // Can't marge the following two loops as we exceed the number of veriables on the stack
+        // and the compiler gives: CompilerError: Stack too deep, try removing local variables.
         for (uint256 i = 0; i < _amount.length; i++) {
           require(_isValidSignature(_requestor, _provider, _amount[i], _subtask_id[i], _v[i], _r[i], _s[i]), "Invalid signature");
+        }
+        uint256 total_amount = 0;
+        for (uint256 i = 0; i < _amount.length; i++) {
           total_amount += _amount[i];
         }
-        _reimburse(_requestor, _provider, total_amount);
-        emit ReimburseForNoPayment(_requestor, _provider, total_amount, _closure_time);
+        require(_reimburse_amount <= total_amount, "Reimburse amount exceeds total");
+        _reimburse(_requestor, _provider, _reimburse_amount);
+        emit ReimburseForNoPayment(_requestor, _provider, _reimburse_amount, _closure_time);
     }
 
     function reimburseForVerificationCosts(

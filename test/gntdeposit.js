@@ -124,6 +124,7 @@ contract("GNTDeposit", async accounts_ => {
     subtaskId2[3] = 23;
     subtaskId2 = web3.utils.bytesToHex(subtaskId2);
     let closureTime = new BN(44431);
+    let reimburse_amount = amount1.add(amount2).divn(2);
 
     let msg1 = '0x' + user.substr(2) + other.substr(2) + web3.utils.bytesToHex(amountBytes1).substr(2) + subtaskId1.substr(2);
     let [r1, s1, v1] = await signMsg(msg1, user);
@@ -139,9 +140,25 @@ contract("GNTDeposit", async accounts_ => {
       [v1, v2],
       [r1, r2],
       [s1, s2],
+      reimburse_amount,
       closureTime,
       {from: other},
     ), "Concent only method");
+
+    // reimburse amount exceeds total amount
+    await truffleAssert.reverts(gntdeposit['reimburseForNoPayment'](
+      user,
+      other,
+      [amount1, amount2],
+      [subtaskId1, subtaskId2],
+      [v1, v2],
+      [r1, r2],
+      [s1, s2],
+      amount1.add(amount2).addn(1),
+      closureTime,
+      {from: concent},
+    ), "Reimburse amount exceeds total");
+
 
     let tx = await gntdeposit['reimburseForNoPayment'](
       user,
@@ -151,16 +168,16 @@ contract("GNTDeposit", async accounts_ => {
       [v1, v2],
       [r1, r2],
       [s1, s2],
+      reimburse_amount,
       closureTime,
       {from: concent},
     );
-    let total_amount = amount1.add(amount2);
-    assert.isTrue(depositBalance.sub(total_amount).eq(await gntdeposit.balanceOf(user)));
-    assert.isTrue(total_amount.eq(await gntb.balanceOf(other)));
+    assert.isTrue(depositBalance.sub(reimburse_amount).eq(await gntdeposit.balanceOf(user)));
+    assert.isTrue(reimburse_amount.eq(await gntb.balanceOf(other)));
     truffleAssert.eventEmitted(tx, 'ReimburseForNoPayment', (ev) => {
       return ev._requestor == user &&
       ev._provider == other &&
-      ev._amount.eq(total_amount) &&
+      ev._amount.eq(reimburse_amount) &&
       ev._closure_time.eq(closureTime);
     });
   });
