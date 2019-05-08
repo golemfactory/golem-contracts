@@ -172,14 +172,16 @@ contract GNTDeposit is ReceivingContract, Ownable {
         bytes32 _subtask_id,
         uint8 _v,
         bytes32 _r,
-        bytes32 _s
+        bytes32 _s,
+        uint256 _reimburse_amount
     )
         onlyConcent
         external
     {
         require(_isValidSignature(_requestor, _provider, _amount, _subtask_id, _v, _r, _s), "Invalid signature");
-        _reimburse(_requestor, _provider, _amount);
-        emit ReimburseForSubtask(_requestor, _provider, _amount, _subtask_id);
+        require(_reimburse_amount <= _amount, "Reimburse amount exceeds allowed");
+        _reimburse(_requestor, _provider, _reimburse_amount);
+        emit ReimburseForSubtask(_requestor, _provider, _reimburse_amount, _subtask_id);
     }
 
     function reimburseForNoPayment(
@@ -220,14 +222,16 @@ contract GNTDeposit is ReceivingContract, Ownable {
         bytes32 _subtask_id,
         uint8 _v,
         bytes32 _r,
-        bytes32 _s
+        bytes32 _s,
+        uint256 _reimburse_amount
     )
         onlyConcent
         external
     {
         require(_isValidSignature(_from, address(this), _amount, _subtask_id, _v, _r, _s), "Invalid signature");
-        _reimburse(_from, coldwallet, _amount);
-        emit ReimburseForVerificationCosts(_from, _amount, _subtask_id);
+        require(_reimburse_amount <= _amount, "Reimburse amount exceeds allowed");
+        _reimburse(_from, coldwallet, _reimburse_amount);
+        emit ReimburseForVerificationCosts(_from, _reimburse_amount, _subtask_id);
     }
 
     function reimburseForCommunication(
