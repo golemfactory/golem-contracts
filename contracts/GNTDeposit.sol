@@ -202,7 +202,7 @@ contract GNTDeposit is ReceivingContract, Ownable {
         require(_amount.length == _v.length);
         require(_amount.length == _r.length);
         require(_amount.length == _s.length);
-        // Can't marge the following two loops as we exceed the number of veriables on the stack
+        // Can't merge the following two loops as we exceed the number of veriables on the stack
         // and the compiler gives: CompilerError: Stack too deep, try removing local variables.
         for (uint256 i = 0; i < _amount.length; i++) {
           require(_isValidSignature(_requestor, _provider, _amount[i], _subtask_id[i], _v[i], _r[i], _s[i]), "Invalid signature");
