@@ -21,6 +21,6 @@
     "truffle-assertions": "0.7.2"
   },
   "devDependencies": {
-    "solhint": "^2.0.0"
+    "solhint": "^2.1.0"
   }
 }
