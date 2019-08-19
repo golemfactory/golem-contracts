@@ -107,7 +107,7 @@ contract("GNTDeposit", async accounts_ => {
     subtaskId = web3.utils.bytesToHex(subtaskId);
     let amount = new BN(124);
     let amountBytes = amount.toBuffer('big', 32)
-    let msg = '0x' + user.substr(2) + other.substr(2) + web3.utils.bytesToHex(amountBytes).substr(2) + subtaskId.substr(2);
+    let msg = '0x' + gntdeposit.address.substr(2) + user.substr(2) + other.substr(2) + web3.utils.bytesToHex(amountBytes).substr(2) + subtaskId.substr(2);
     let [r, s, v] = await signMsg(msg, user);
     await reimbursePairImpl('reimburseForSubtask', amount, [subtaskId, v, r, s], 'ReimburseForSubtask', (ev) => {
       return ev._subtask_id == subtaskId;
@@ -128,9 +128,9 @@ contract("GNTDeposit", async accounts_ => {
     let closureTime = new BN(44431);
     let reimburse_amount = amount1.add(amount2).divn(2);
 
-    let msg1 = '0x' + user.substr(2) + other.substr(2) + web3.utils.bytesToHex(amountBytes1).substr(2) + subtaskId1.substr(2);
+    let msg1 = '0x' + gntdeposit.address.substr(2) + user.substr(2) + other.substr(2) + web3.utils.bytesToHex(amountBytes1).substr(2) + subtaskId1.substr(2);
     let [r1, s1, v1] = await signMsg(msg1, user);
-    let msg2 = '0x' + user.substr(2) + other.substr(2) + web3.utils.bytesToHex(amountBytes2).substr(2) + subtaskId2.substr(2);
+    let msg2 = '0x' + gntdeposit.address.substr(2) + user.substr(2) + other.substr(2) + web3.utils.bytesToHex(amountBytes2).substr(2) + subtaskId2.substr(2);
     let [r2, s2, v2] = await signMsg(msg2, user);
 
     // not Concent
@@ -211,7 +211,7 @@ contract("GNTDeposit", async accounts_ => {
     subtaskId[0] = 34;
     subtaskId = web3.utils.bytesToHex(subtaskId);
     let amountBytes = amount.toBuffer('big', 32)
-    let msg = '0x' + user.substr(2) + gntdeposit.address.substr(2) + web3.utils.bytesToHex(amountBytes).substr(2) + subtaskId.substr(2);
+    let msg = '0x' + gntdeposit.address.substr(2) + user.substr(2) + gntdeposit.address.substr(2) + web3.utils.bytesToHex(amountBytes).substr(2) + subtaskId.substr(2);
     let [r, s, v] = await signMsg(msg, user);
     await reimburseSingleImpl('reimburseForVerificationCosts', amount, [subtaskId, v, r, s], true, 'ReimburseForVerificationCosts', (ev) => {
       return ev._subtask_id == subtaskId;
