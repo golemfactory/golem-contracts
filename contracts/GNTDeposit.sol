@@ -5,6 +5,8 @@ import "./GolemNetworkTokenBatching.sol";
 import "./ReceivingContract.sol";
 
 contract GNTDeposit is ReceivingContract, Ownable {
+    using SafeMath for uint256;
+
     address public concent;
     address public coldwallet;
 
@@ -269,7 +271,7 @@ contract GNTDeposit is ReceivingContract, Ownable {
             return false;
         }
         // SafeMath is not required here, as these numbers won't exceed token's total supply
-        return token.balanceOf(address(this)) + _amount > maximum_deposits_total;
+        return token.balanceOf(address(this)).add(_amount) > maximum_deposits_total;
     }
 
     function _isMaximumDepositLimitHit(address _owner, uint256 _amount) private view returns (bool) {
@@ -277,7 +279,7 @@ contract GNTDeposit is ReceivingContract, Ownable {
             return false;
         }
         // SafeMath is not required here, as these numbers won't exceed token's total supply
-        return balances[_owner] + _amount > maximum_deposit_amount;
+        return balances[_owner].add(_amount) > maximum_deposit_amount;
     }
 
     function _isValidSignature(
