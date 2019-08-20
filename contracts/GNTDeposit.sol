@@ -270,7 +270,6 @@ contract GNTDeposit is ReceivingContract, Ownable {
         if (maximum_deposits_total == 0) {
             return false;
         }
-        // SafeMath is not required here, as these numbers won't exceed token's total supply
         return token.balanceOf(address(this)).add(_amount) > maximum_deposits_total;
     }
 
@@ -278,7 +277,6 @@ contract GNTDeposit is ReceivingContract, Ownable {
         if (maximum_deposit_amount == 0) {
             return false;
         }
-        // SafeMath is not required here, as these numbers won't exceed token's total supply
         return balances[_owner].add(_amount) > maximum_deposit_amount;
     }
 
