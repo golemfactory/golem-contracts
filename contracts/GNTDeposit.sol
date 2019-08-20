@@ -291,6 +291,14 @@ contract GNTDeposit is ReceivingContract, Ownable {
         bytes32 _r,
         bytes32 _s
     ) public view returns (bool) {
+        // Appendix F in the Ethereum Yellow paper (https://ethereum.github.io/yellowpaper/paper.pdf)
+        // describes what constitutes a valid signature.
+        if (uint256(_s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
+            return false;
+        }
+        if (_v != 27 && _v != 28) {
+            return false;
+        }
         return _from == ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n124", address(this), _from, _to, _amount, _subtask_id)), _v, _r, _s);
     }
 
