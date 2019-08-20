@@ -290,8 +290,8 @@ contract GNTDeposit is ReceivingContract, Ownable {
         uint8 _v,
         bytes32 _r,
         bytes32 _s
-    ) public pure returns (bool) {
-        return _from == ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n104", _from, _to, _amount, _subtask_id)), _v, _r, _s);
+    ) public view returns (bool) {
+        return _from == ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n124", address(this), _from, _to, _amount, _subtask_id)), _v, _r, _s);
     }
 
 }
