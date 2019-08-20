@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity 0.5.11;
 
 import "./open_zeppelin/Ownable.sol";
 import "./GolemNetworkTokenBatching.sol";

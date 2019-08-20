@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity 0.5.11;
 
 /// Contracts implementing this interface are compatible with
 /// GolemNetworkTokenBatching's transferAndCall method
