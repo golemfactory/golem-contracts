@@ -1,9 +1,28 @@
 {
+  "name": "golem-contracts",
+  "version": "1.0.0",
+  "homepage": "https://github.com/golemfactory/golem-contracts#readme",
+  "scripts": {
+    "lint": "solhint contracts/*.sol"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/golemfactory/golem-contracts.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/golemfactory/golem-contracts/issues"
+  },
   "dependencies": {
     "diff": ">=3.5.0",
     "mem": ">=4.0.0",
     "openzeppelin-test-helpers": "0.1.2",
     "truffle": "5.0.3",
     "truffle-assertions": "0.7.2"
+  },
+  "devDependencies": {
+    "solhint": "^2.1.0"
   }
 }
