@@ -1,10 +1,10 @@
 pragma solidity 0.5.11;
 
-import "./open_zeppelin/Ownable.sol";
+import {Ownable as OldOwnable} from "./open_zeppelin/Ownable.sol";
 import "./GolemNetworkTokenBatching.sol";
 import "./ReceivingContract.sol";
 
-contract GNTDeposit is ReceivingContract, Ownable {
+contract GNTDeposit is ReceivingContract, OldOwnable {
     using SafeMath for uint256;
 
     address public concent;

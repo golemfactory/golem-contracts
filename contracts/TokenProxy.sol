@@ -3,8 +3,9 @@
 
 pragma solidity ^0.5.3;
 
-import "./open_zeppelin/BurnableToken.sol";
-import "./open_zeppelin/StandardToken.sol";
+import "@openzeppelin/contracts/GSN/GSNRecipient.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 
 /// The Gate is a contract with unique address to allow a token holder
 /// (called "User") to transfer tokens from original Token to the Proxy.
@@ -12,11 +13,11 @@ import "./open_zeppelin/StandardToken.sol";
 /// The Gate does not know who its User is. The User-Gate relationship is
 /// managed by the Proxy.
 contract Gate {
-    ERC20Basic private TOKEN;
+    ERC20 private TOKEN;
     address private PROXY;
 
     /// Gates are to be created by the TokenProxy.
-    constructor(ERC20Basic _token, address _proxy) public {
+    constructor(ERC20 _token, address _proxy) public {
         TOKEN = _token;
         PROXY = _proxy;
     }
@@ -51,9 +52,9 @@ contract Gate {
 ///
 /// In the step 3 the User's tokens are going to be moved from the Gate to
 /// the User's balance in the Proxy.
-contract TokenProxy is StandardToken, BurnableToken {
+contract TokenProxy is ERC20, ERC20Burnable, GSNRecipient {
 
-    ERC20Basic public TOKEN;
+    ERC20 public TOKEN;
 
     mapping(address => address) private gates;
 
@@ -62,7 +63,7 @@ contract TokenProxy is StandardToken, BurnableToken {
 
     event Mint(address indexed to, uint256 amount);
 
-    constructor(ERC20Basic _token) public {
+    constructor(ERC20 _token) public {
         TOKEN = _token;
     }
 
@@ -100,14 +101,13 @@ contract TokenProxy is StandardToken, BurnableToken {
 
         // Handle the information about the amount of migrated tokens.
         // This is a trusted information becase it comes from the Gate.
-        totalSupply_ += value;
-        balances[user] += value;
+        _mint(user, value);
 
         emit Mint(user, value);
     }
 
     function withdraw(uint256 _value) external {
-        withdrawTo(_value, msg.sender);
+        withdrawTo(_value, _msgSender());
     }
 
     function withdrawTo(uint256 _value, address _destination) public {
