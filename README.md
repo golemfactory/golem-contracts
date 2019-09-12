@@ -11,4 +11,4 @@
 
 # Compiling and running tests
 `$ npm install`  
-`$ node_modules/bin/truffle test`  
+`$ node_modules/.bin/truffle test`  
