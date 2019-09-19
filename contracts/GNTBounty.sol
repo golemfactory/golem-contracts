@@ -8,36 +8,34 @@ interface GNT {
 
 contract GNTBounty {
   GNT public _gnt;
+  address public _addr;
 
-  mapping(address => uint256) private _bounties;
-  mapping(bytes32 => bool) private _hashes;
+  mapping(bytes32 => uint256) private _bounties;
 
   constructor(
     GNT gnt,
     bytes32[] memory hashes,
     uint256[] memory bounties,
-    address[] memory addresses
+    address addr
   ) public {
     require(hashes.length == bounties.length);
-    require(bounties.length == addresses.length);
 
     _gnt = gnt;
+    _addr = addr;
 
     for (uint256 i = 0; i < hashes.length; i++) {
-      _hashes[hashes[i]] = true;
-      _bounties[addresses[i]] = bounties[i];
+      _bounties[hashes[i]] = bounties[i];
     }
   }
 
   function claim(string memory secret, address to) public {
+    require(msg.sender == _addr, "Unauthorized sender");
     bytes32 h = hash(secret);
-    require(_hashes[h], "Invalid or already used secret");
+    uint256 bounty = _bounties[h];
 
-    uint256 bounty = _bounties[msg.sender];
-    require(bounty > 0, "Invalid sender or bounty already claimed");
+    require(bounty > 0, "Invalid or already used secret");
 
-    _hashes[h] = false;
-    _bounties[msg.sender] = 0;
+    _bounties[h] = 0;
     require(_gnt.transfer(to, bounty), "Failed to transfer GNT");
   }
 
@@ -45,7 +43,7 @@ contract GNTBounty {
     return keccak256(abi.encodePacked(secret));
   }
 
-  function check(string memory secret) public view returns (bool) {
-    return _hashes[hash(secret)];
+  function check(string memory secret) public view returns (uint256) {
+    return _bounties[hash(secret)];
   }
 }
