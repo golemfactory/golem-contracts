@@ -76,12 +76,10 @@ contract("GNTDeposit", async accounts_ => {
   });
 
   it("reimburseForSubtask", async () => {
-    let subtaskId = new Array(32);
-    subtaskId[1] = 34;
-    subtaskId = web3.utils.bytesToHex(subtaskId);
     let amount = new BN(124);
-    let amountBytes = amount.toBuffer('big', 32)
-    let msg = '0x' + gntdeposit.address.substr(2) + user.substr(2) + other.substr(2) + web3.utils.bytesToHex(amountBytes).substr(2) + subtaskId.substr(2);
+    let subtaskIdBytes = new Array(32);
+    subtaskIdBytes[1] = 34;
+    let [msg, amountBytes, subtaskId] = _prepareSubtask(amount, subtaskIdBytes);
     let [r, s, v] = await _signMsg(msg, user);
     await _reimbursePairImpl('reimburseForSubtask', amount, [subtaskId, v, r, s], 'ReimburseForSubtask', (ev) => {
       return ev._subtask_id == subtaskId;
@@ -90,19 +88,20 @@ contract("GNTDeposit", async accounts_ => {
 
   it("reimburseForNoPayment", async () => {
     let amount1 = new BN(124);
-    let amountBytes1 = amount1.toBuffer('big', 32)
-    let subtaskId1 = new Array(32);
-    subtaskId1[0] = 34;
-    subtaskId1 = web3.utils.bytesToHex(subtaskId1);
+    let subtaskId1Bytes = new Array(32);
+    subtaskId1Bytes[0] = 34;
+    let [msg1, amountBytes1, subtaskId1] = _prepareSubtask(amount1, subtaskId1Bytes);
+    let [r1, s1, v1] = await _signMsg(msg1, user);
+
+
     let amount2 = new BN(224);
-    let amountBytes2 = amount2.toBuffer('big', 32)
-    let subtaskId2 = new Array(32);
-    subtaskId2[3] = 23;
-    subtaskId2 = web3.utils.bytesToHex(subtaskId2);
+    let subtaskId2Bytes = new Array(32);
+    subtaskId2Bytes[3] = 23;
+    let [msg2, amountBytes2, subtaskId2] = _prepareSubtask(amount2, subtaskId2Bytes);
+    let [r2, s2, v2] = await _signMsg(msg2, user);
+
     let closureTime = new BN(44431);
     let reimburse_amount = amount1.add(amount2).divn(2);
-    let msg2 = '0x' + gntdeposit.address.substr(2) + user.substr(2) + other.substr(2) + web3.utils.bytesToHex(amountBytes2).substr(2) + subtaskId2.substr(2);
-    let [r2, s2, v2] = await _signMsg(msg2, user);
 
     // not Concent
     await truffleAssert.reverts(gntdeposit['reimburseForNoPayment'](
@@ -157,11 +156,9 @@ contract("GNTDeposit", async accounts_ => {
 
   it("reimburseForVerificationCosts", async () => {
     let amount = new BN(124);
-    let subtaskId = new Array(32);
-    subtaskId[0] = 34;
-    subtaskId = web3.utils.bytesToHex(subtaskId);
-    let amountBytes = amount.toBuffer('big', 32)
-    let msg = '0x' + gntdeposit.address.substr(2) + user.substr(2) + gntdeposit.address.substr(2) + web3.utils.bytesToHex(amountBytes).substr(2) + subtaskId.substr(2);
+    let subtaskIdBytes = new Array(32);
+    subtaskIdBytes[0] = 34;
+    let [msg, amountBytes, subtaskId] = _prepareSubtask(amount, subtaskIdBytes, gntdeposit.address);
     let [r, s, v] = await _signMsg(msg, user);
     await _reimburseSingleImpl('reimburseForVerificationCosts', amount, [subtaskId, v, r, s], true, 'ReimburseForVerificationCosts', (ev) => {
       return ev._subtask_id == subtaskId;
@@ -240,6 +237,18 @@ contract("GNTDeposit", async accounts_ => {
     await helpers.time.increase(24 * 60 * 60 + 1);
     await gntdeposit.reimburseForCommunication(user, new BN(1), {from: concent});
   });
+
+  function _prepareSubtask(amount, subtaskIdBytes, _other = other) {
+    let amountBn = new BN(amount);
+    let amountBytes = amountBn.toBuffer('big', 32);
+    subtaskIdHex = web3.utils.bytesToHex(subtaskIdBytes);
+    let msg = '0x' + gntdeposit.address.substr(2) + user.substr(2) + _other.substr(2) + web3.utils.bytesToHex(amountBytes).substr(2) + subtaskIdHex.substr(2);
+    return [
+      msg,
+      amountBytes,
+      subtaskIdHex,
+    ]
+  }
 
   async function _signMsg(msg, account) {
     let signature = await web3.eth.sign(msg, account);
