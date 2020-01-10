@@ -7,6 +7,7 @@
     "truffle-assertions": "0.7.2"
   },
   "devDependencies": {
-    "eth-gas-reporter": "^0.2.14"
+    "eth-gas-reporter": "^0.2.14",
+    "solidity-coverage": "^0.7.1"
   }
 }
