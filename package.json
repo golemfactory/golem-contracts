@@ -5,5 +5,8 @@
     "openzeppelin-test-helpers": "0.1.2",
     "truffle": "5.0.3",
     "truffle-assertions": "0.7.2"
+  },
+  "devDependencies": {
+    "eth-gas-reporter": "^0.2.14"
   }
 }
