@@ -69,17 +69,38 @@ contract("GolemNetworkTokenBatching", async accounts_ => {
     await truffleAssert.reverts(gntb.batchTransfer(payments, closureTime, {from: addr}));
   });
 
-  it("batch transfer", async () => {
+  it("batch transfer - 4 accounts", async () => {
+    // 123k
+    await _batch_transfer(4)
+  });
+
+  it("batch transfer - 3 accounts", async () => {
+    // 99k
+    await _batch_transfer(3)
+  });
+
+  it("batch transfer - 2 accounts", async () => {
+    // 76k
+    await _batch_transfer(2)
+  });
+
+  it("batch transfer - 1 account", async () => {
+    // 52k
+    await _batch_transfer(1)
+  });
+
+
+  async function _batch_transfer(subtask_count) {
     let payments = [];
-    assert.isAtLeast(accounts.length, 4);
-    for (let i = 0; i < 4; i++) {
+    assert.isAtLeast(accounts.length, subtask_count);
+    for (let i = 0; i < subtask_count; i++) {
       assert.equal(0, await gntb.balanceOf(accounts[i]));
       payments.push([accounts[i], new BN('1'.repeat(i+1), 10)]);
     }
     let encoded = encodePayments(payments);
     let closureTime = 321;
     let tx = await gntb.batchTransfer(encoded, closureTime, {from: addr});
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < subtask_count; i++) {
       truffleAssert.eventEmitted(tx, 'BatchTransfer', (ev) => {
         return ev.from == addr &&
           ev.to == payments[i][0] &&
@@ -88,7 +109,7 @@ contract("GolemNetworkTokenBatching", async accounts_ => {
       })
       assert.isTrue(payments[i][1].eq(await gntb.balanceOf(payments[i][0])));
     }
-  });
+  }
 });
 
 
