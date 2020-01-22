@@ -1,6 +1,6 @@
 pragma solidity 0.5.11;
 
-import "./open_zeppelin/Ownable.sol";
+import "./Ownable.sol";
 import "./GolemNetworkTokenBatching.sol";
 import "./ReceivingContract.sol";
 

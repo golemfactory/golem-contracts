@@ -3,8 +3,8 @@
 
 pragma solidity ^0.5.3;
 
-import "./open_zeppelin/BurnableToken.sol";
-import "./open_zeppelin/StandardToken.sol";
+import "./BurnableToken.sol";
+import "./StandardToken.sol";
 
 /// The Gate is a contract with unique address to allow a token holder
 /// (called "User") to transfer tokens from original Token to the Proxy.
