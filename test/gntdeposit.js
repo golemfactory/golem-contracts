@@ -66,7 +66,7 @@ contract("GNTDeposit", async accounts_ => {
     assert.equal(0, await gntdeposit.getTimelock.call(user));
   });
 
-  it("burn", async () => {
+  it("burn - funds left", async () => {
     let amount = new BN(124);
     // not Concent
     await truffleAssert.reverts(gntdeposit.burn(user, amount, {from: user}), "Concent only method");
@@ -75,69 +75,50 @@ contract("GNTDeposit", async accounts_ => {
     assert.isTrue(depositBalance.sub(amount).eq(await gntdeposit.balanceOf(user)));
   });
 
-  async function signMsg(msg, account) {
-      let signature = await web3.eth.sign(msg, account);
-      signature = signature.substr(2);
-      let r = '0x' + signature.substr(0, 64);
-      let s = '0x' + signature.substr(64, 64);
-      let v = (new BN(signature.substr(128, 2), 16)).addn(27);
-      return [r, s, v];
-  }
-
-  async function reimbursePairImpl(fnName, amount, args, eventName, evFunction) {
+  it("burn - all funds", async () => {
+    let amount = new BN(await gntdeposit.balanceOf.call(user));
     // not Concent
-    let reimburse_amount = amount.divn(2);
-    await truffleAssert.reverts(gntdeposit[fnName](user, other, amount, ...args, reimburse_amount, {from: other}), "Concent only method");
-    await truffleAssert.reverts(gntdeposit[fnName](user, other, amount, ...args, amount.addn(1), {from: concent}), "Reimburse amount exceeds allowed");
+    await truffleAssert.reverts(gntdeposit.burn(user, amount, {from: user}), "Concent only method");
 
-    let tx = await gntdeposit[fnName](user, other, amount, ...args, reimburse_amount, {from: concent});
-    assert.isTrue(depositBalance.sub(reimburse_amount).eq(await gntdeposit.balanceOf(user)));
-    assert.isTrue(reimburse_amount.eq(await gntb.balanceOf(other)));
-    truffleAssert.eventEmitted(tx, eventName, (ev) => {
-      return ev._requestor == user &&
-      ev._provider == other &&
-      ev._amount.eq(reimburse_amount) &&
-      evFunction(ev);
-    });
-  }
+    await gntdeposit.burn(user, amount, {from: concent});
+    assert.isTrue(depositBalance.sub(amount).eq(await gntdeposit.balanceOf(user)));
+  });
 
   it("reimburseForSubtask", async () => {
-    let subtaskId = new Array(32);
-    subtaskId[1] = 34;
-    subtaskId = web3.utils.bytesToHex(subtaskId);
     let amount = new BN(124);
-    let amountBytes = amount.toBuffer('big', 32)
-    let msg = '0x' + gntdeposit.address.substr(2) + user.substr(2) + other.substr(2) + web3.utils.bytesToHex(amountBytes).substr(2) + subtaskId.substr(2);
-    let [r, s, v] = await signMsg(msg, user);
-    await reimbursePairImpl('reimburseForSubtask', amount, [subtaskId, v, r, s], 'ReimburseForSubtask', (ev) => {
+    let subtaskIdBytes = new Array(32);
+    subtaskIdBytes[1] = 34;
+    let [msg, amountBytes, subtaskId] = _prepareSubtask(amount, subtaskIdBytes);
+    let [r, s, v] = await _signMsg(msg, user);
+    await _reimbursePairImpl('reimburseForSubtask', amount, [subtaskId, v, r, s], 'ReimburseForSubtask', (ev) => {
       return ev._subtask_id == subtaskId;
     });
   });
 
-  it("reimburseForNoPayment", async () => {
+  it("reimburseForNoPayment - two subtasks", async () => {
+    let limit = new BN(1000);
+    await _setDailyReimbursementLimit(limit);
     let amount1 = new BN(124);
-    let amountBytes1 = amount1.toBuffer('big', 32)
-    let subtaskId1 = new Array(32);
-    subtaskId1[0] = 34;
-    subtaskId1 = web3.utils.bytesToHex(subtaskId1);
+    let subtaskId1Bytes = new Array(32);
+    subtaskId1Bytes[0] = 34;
+    let [msg1, amountBytes1, subtaskId1] = _prepareSubtask(amount1, subtaskId1Bytes);
+    let [r1, s1, v1] = await _signMsg(msg1, user);
+
+
     let amount2 = new BN(224);
-    let amountBytes2 = amount2.toBuffer('big', 32)
-    let subtaskId2 = new Array(32);
-    subtaskId2[3] = 23;
-    subtaskId2 = web3.utils.bytesToHex(subtaskId2);
+    let subtaskId2Bytes = new Array(32);
+    subtaskId2Bytes[3] = 23;
+    let [msg2, amountBytes2, subtaskId2] = _prepareSubtask(amount2, subtaskId2Bytes);
+    let [r2, s2, v2] = await _signMsg(msg2, user);
+
     let closureTime = new BN(44431);
     let reimburse_amount = amount1.add(amount2).divn(2);
-
-    let msg1 = '0x' + gntdeposit.address.substr(2) + user.substr(2) + other.substr(2) + web3.utils.bytesToHex(amountBytes1).substr(2) + subtaskId1.substr(2);
-    let [r1, s1, v1] = await signMsg(msg1, user);
-    let msg2 = '0x' + gntdeposit.address.substr(2) + user.substr(2) + other.substr(2) + web3.utils.bytesToHex(amountBytes2).substr(2) + subtaskId2.substr(2);
-    let [r2, s2, v2] = await signMsg(msg2, user);
 
     // not Concent
     await truffleAssert.reverts(gntdeposit['reimburseForNoPayment'](
       user,
       other,
-      [amountBytes1, amountBytes2],
+      [amount1, amount2],
       [subtaskId1, subtaskId2],
       [v1, v2],
       [r1, r2],
@@ -184,44 +165,109 @@ contract("GNTDeposit", async accounts_ => {
     });
   });
 
-  async function reimburseSingleImpl(fnName, amount, args, custom_reimburse_amount, eventName, evFunction) {
-    // not Concent
-    let reimburse_amount = amount;
-    if (custom_reimburse_amount) {
-      reimburse_amount = amount.addn(1);
-      args.push(reimburse_amount);
-      await truffleAssert.reverts(gntdeposit[fnName](user, amount, ...args, {from: concent}), "Reimburse amount exceeds allowed");
-      reimburse_amount.idivn(2);
-    }
-    await truffleAssert.reverts(gntdeposit[fnName](user, amount, ...args, {from: other}), "Concent only method");
+  it("reimburseForNoPayment - one subtask", async () => {
+    let limit = new BN(1000);
+    await _setDailyReimbursementLimit(limit);
+    let amount1 = new BN(124);
+    let subtaskId1Bytes = new Array(32);
+    subtaskId1Bytes[0] = 34;
+    let [msg1, amountBytes1, subtaskId1] = _prepareSubtask(amount1, subtaskId1Bytes);
+    let [r1, s1, v1] = await _signMsg(msg1, user);
 
-    let tx = await gntdeposit[fnName](user, amount, ...args, {from: concent});
+    let closureTime = new BN(44431);
+    let reimburse_amount = amount1.divn(2);
+
+    // not Concent
+    await truffleAssert.reverts(gntdeposit['reimburseForNoPayment'](
+      user,
+      other,
+      [amount1],
+      [subtaskId1],
+      [v1],
+      [r1],
+      [s1],
+      reimburse_amount,
+      closureTime,
+      {from: other},
+    ), "Concent only method");
+
+    // reimburse amount exceeds total amount
+    await truffleAssert.reverts(gntdeposit['reimburseForNoPayment'](
+      user,
+      other,
+      [amount1],
+      [subtaskId1],
+      [v1],
+      [r1],
+      [s1],
+      amount1.addn(1),
+      closureTime,
+      {from: concent},
+    ), "Reimburse amount exceeds total");
+
+
+    let tx = await gntdeposit['reimburseForNoPayment'](
+      user,
+      other,
+      [amount1],
+      [subtaskId1],
+      [v1],
+      [r1],
+      [s1],
+      reimburse_amount,
+      closureTime,
+      {from: concent},
+    );
     assert.isTrue(depositBalance.sub(reimburse_amount).eq(await gntdeposit.balanceOf(user)));
-    assert.isTrue(reimburse_amount.eq(await gntb.balanceOf(concent)));
-    truffleAssert.eventEmitted(tx, eventName, (ev) => {
-      return ev._from == user &&
+    assert.isTrue(reimburse_amount.eq(await gntb.balanceOf(other)));
+    truffleAssert.eventEmitted(tx, 'ReimburseForNoPayment', (ev) => {
+      return ev._requestor == user &&
+      ev._provider == other &&
       ev._amount.eq(reimburse_amount) &&
-      evFunction(ev);
+      ev._closure_time.eq(closureTime);
     });
-  }
+  });
 
   it("reimburseForVerificationCosts", async () => {
     let amount = new BN(124);
-    let subtaskId = new Array(32);
-    subtaskId[0] = 34;
-    subtaskId = web3.utils.bytesToHex(subtaskId);
-    let amountBytes = amount.toBuffer('big', 32)
-    let msg = '0x' + gntdeposit.address.substr(2) + user.substr(2) + gntdeposit.address.substr(2) + web3.utils.bytesToHex(amountBytes).substr(2) + subtaskId.substr(2);
-    let [r, s, v] = await signMsg(msg, user);
-    await reimburseSingleImpl('reimburseForVerificationCosts', amount, [subtaskId, v, r, s], true, 'ReimburseForVerificationCosts', (ev) => {
+    let subtaskIdBytes = new Array(32);
+    subtaskIdBytes[0] = 34;
+    let [msg, amountBytes, subtaskId] = _prepareSubtask(amount, subtaskIdBytes, gntdeposit.address);
+    let [r, s, v] = await _signMsg(msg, user);
+    await _reimburseSingleImpl('reimburseForVerificationCosts', amount, [subtaskId, v, r, s], true, 'ReimburseForVerificationCosts', (ev) => {
       return ev._subtask_id == subtaskId;
     });
   });
 
   it("reimburseForCommunication", async () => {
     let amount = new BN(124);
-    await reimburseSingleImpl('reimburseForCommunication', amount, [], false, 'ReimburseForCommunication', (ev) => {
+    await _reimburseSingleImpl('reimburseForCommunication', amount, [], false, 'ReimburseForCommunication', (ev) => {
       return true;
+    });
+  });
+
+  it("reimburseForVerificationCosts - worse case", async () => {
+    // Set daily limit
+
+    let limit = new BN(1000);
+    await _setDailyReimbursementLimit(limit);
+
+    // do test
+    let amount1 = new BN(64);
+    let subtaskId1Bytes = new Array(32);
+    subtaskId1Bytes[0] = 34;
+    let [msg1, amountBytes1, subtaskId1] = _prepareSubtask(amount1, subtaskId1Bytes, gntdeposit.address);
+    let [r1, s1, v1] = await _signMsg(msg1, user);
+    await _reimburseSingleImpl('reimburseForVerificationCosts', amount1, [subtaskId1, v1, r1, s1], true, 'ReimburseForVerificationCosts', (ev) => {
+      return ev._subtask_id == subtaskId1;
+    });
+    let subtaskId2Bytes = new Array(32);
+    subtaskId2Bytes[1] = 16;
+    let amount2 = amount1.divn(2);
+    let [msg2, amountBytes2, subtaskId2] = _prepareSubtask(amount2, subtaskId2Bytes, gntdeposit.address);
+    let [r2, s2, v2] = await _signMsg(msg2, user);
+    await _reimburseSingleImpl('reimburseForVerificationCosts', amount2, [subtaskId2, v2, r2, s2], true, 'ReimburseForVerificationCosts', (ev) => {
+      return ev._subtask_id == subtaskId2;
     });
   });
 
@@ -280,11 +326,8 @@ contract("GNTDeposit", async accounts_ => {
 
   it("reimburse limit", async () => {
     assert.equal(0, await gntdeposit.daily_reimbursement_limit.call());
-    let limit = new BN(1000);
-    await truffleAssert.reverts(gntdeposit.setDailyReimbursementLimit(limit, {from: other}), "Owner only method");
-    await truffleAssert.reverts(gntdeposit.setDailyReimbursementLimit(limit, {from: concent}), "Owner only method");
-    await gntdeposit.setDailyReimbursementLimit(limit, {from: golemfactory});
-    assert.isTrue(limit.eq(await gntdeposit.daily_reimbursement_limit.call()));
+    const limit = new BN(1000);
+    await _setDailyReimbursementLimit(limit);
 
     await truffleAssert.reverts(gntdeposit.reimburseForCommunication(user, limit.addn(1), {from: concent}), "Daily reimbursement limit hit");
     await gntdeposit.reimburseForCommunication(user, limit.subn(1), {from: concent});
@@ -293,4 +336,72 @@ contract("GNTDeposit", async accounts_ => {
     await helpers.time.increase(24 * 60 * 60 + 1);
     await gntdeposit.reimburseForCommunication(user, new BN(1), {from: concent});
   });
+
+  function _prepareSubtask(amount, subtaskIdBytes, _other = other) {
+    let amountBn = new BN(amount);
+    let amountBytes = amountBn.toBuffer('big', 32);
+    subtaskIdHex = web3.utils.bytesToHex(subtaskIdBytes);
+    let msg = '0x' + gntdeposit.address.substr(2) + user.substr(2) + _other.substr(2) + web3.utils.bytesToHex(amountBytes).substr(2) + subtaskIdHex.substr(2);
+    return [
+      msg,
+      amountBytes,
+      subtaskIdHex,
+    ]
+  }
+
+  async function _signMsg(msg, account) {
+    let signature = await web3.eth.sign(msg, account);
+    signature = signature.substr(2);
+    let r = '0x' + signature.substr(0, 64);
+    let s = '0x' + signature.substr(64, 64);
+    let v = (new BN(signature.substr(128, 2), 16)).addn(27);
+    return [r, s, v];
+  }
+
+  async function _reimbursePairImpl(fnName, amount, args, eventName, evFunction) {
+    // not Concent
+    let reimburse_amount = amount.divn(2);
+    await truffleAssert.reverts(gntdeposit[fnName](user, other, amount, ...args, reimburse_amount, {from: other}), "Concent only method");
+    await truffleAssert.reverts(gntdeposit[fnName](user, other, amount, ...args, amount.addn(1), {from: concent}), "Reimburse amount exceeds allowed");
+
+    let tx = await gntdeposit[fnName](user, other, amount, ...args, reimburse_amount, {from: concent});
+    assert.isTrue(depositBalance.sub(reimburse_amount).eq(await gntdeposit.balanceOf(user)));
+    assert.isTrue(reimburse_amount.eq(await gntb.balanceOf(other)));
+    truffleAssert.eventEmitted(tx, eventName, (ev) => {
+      return ev._requestor == user &&
+      ev._provider == other &&
+      ev._amount.eq(reimburse_amount) &&
+      evFunction(ev);
+    });
+  }
+
+  async function _reimburseSingleImpl(fnName, amount, args, custom_reimburse_amount, eventName, evFunction) {
+    // not Concent
+    let reimburse_amount = amount;
+    if (custom_reimburse_amount) {
+      reimburse_amount = amount.addn(1);
+      args.push(reimburse_amount);
+      await truffleAssert.reverts(gntdeposit[fnName](user, amount, ...args, {from: concent}), "Reimburse amount exceeds allowed");
+      reimburse_amount.idivn(2);
+    }
+    await truffleAssert.reverts(gntdeposit[fnName](user, amount, ...args, {from: other}), "Concent only method");
+
+    let oldConcentBalance = await gntb.balanceOf(concent);
+    let tx = await gntdeposit[fnName](user, amount, ...args, {from: concent});
+    assert.isTrue(depositBalance.sub(reimburse_amount).eq(await gntdeposit.balanceOf(user)), "balance not subtracted");
+    depositBalance = await gntdeposit.balanceOf.call(user);
+    assert.isTrue(oldConcentBalance.add(reimburse_amount).eq(await gntb.balanceOf(concent)), "balance not added");
+    truffleAssert.eventEmitted(tx, eventName, (ev) => {
+      return ev._from == user &&
+      ev._amount.eq(reimburse_amount) &&
+      evFunction(ev);
+    });
+  }
+
+  async function _setDailyReimbursementLimit(limit) {
+    await truffleAssert.reverts(gntdeposit.setDailyReimbursementLimit(limit, {from: other}), "Owner only method");
+    await truffleAssert.reverts(gntdeposit.setDailyReimbursementLimit(limit, {from: concent}), "Owner only method");
+    await gntdeposit.setDailyReimbursementLimit(limit, {from: golemfactory});
+    assert.isTrue(limit.eq(await gntdeposit.daily_reimbursement_limit.call()));
+  }
 });
